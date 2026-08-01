@@ -17,11 +17,11 @@ export default function ChatPanel({ subjectId }) {
   ])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
-  const bottomRef = useRef(null)
+  const messagesEndRef = useRef(null)
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages, loading])
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [messages])
 
   // Reset chat when subject changes
   useEffect(() => {
@@ -84,7 +84,7 @@ export default function ChatPanel({ subjectId }) {
 
   return (
     <div style={styles.panel}>
-      {/* Header */}
+      {/* 1. Header (flex-none) */}
       <div style={styles.header}>
         <div style={styles.headerLeft}>
           <div style={styles.aiIcon}><Bot size={18} color="#60a5fa" /></div>
@@ -96,7 +96,7 @@ export default function ChatPanel({ subjectId }) {
         <span className="badge badge-blue"><Sparkles size={11} /> Gemini 2.0</span>
       </div>
 
-      {/* Messages */}
+      {/* 2. Message History Area (flex-1 min-h-0 overflow-y-auto) */}
       <div style={styles.messages}>
         {messages.map(msg => (
           <div key={msg.id} className="fade-in-up"
@@ -138,39 +138,41 @@ export default function ChatPanel({ subjectId }) {
             </div>
           </div>
         )}
-        <div ref={bottomRef} />
+        <div ref={messagesEndRef} />
       </div>
 
-      {/* Input */}
-      <div style={styles.inputRow}>
-        <textarea
-          id="chat-input"
-          style={styles.textarea}
-          placeholder={subjectId ? 'Ask a question about your textbook...' : 'Select a subject to start chatting...'}
-          value={input}
-          onChange={e => setInput(e.target.value)}
-          onKeyDown={handleKeyDown}
-          rows={1}
-          disabled={!subjectId || loading}
-        />
-        <button
-          id="chat-send-btn"
-          className="btn-primary"
-          onClick={sendMessage}
-          disabled={!input.trim() || loading || !subjectId}
-          style={{ padding: '0.625rem 1rem', minWidth: '48px', borderRadius: '10px' }}
-        >
-          <Send size={16} />
-        </button>
+      {/* 3. Bottom Input Box Container (flex-none pinned to bottom) */}
+      <div style={styles.inputContainer}>
+        <div style={styles.inputRow}>
+          <textarea
+            id="chat-input"
+            style={styles.textarea}
+            placeholder={subjectId ? 'Ask a question about your textbook...' : 'Select a subject to start chatting...'}
+            value={input}
+            onChange={e => setInput(e.target.value)}
+            onKeyDown={handleKeyDown}
+            rows={1}
+            disabled={!subjectId || loading}
+          />
+          <button
+            id="chat-send-btn"
+            className="btn-primary"
+            onClick={sendMessage}
+            disabled={!input.trim() || loading || !subjectId}
+            style={{ padding: '0.625rem 1rem', minWidth: '48px', borderRadius: '10px' }}
+          >
+            <Send size={16} />
+          </button>
+        </div>
+        <p style={styles.hint}>Press Enter to send · Shift+Enter for new line</p>
       </div>
-      <p style={styles.hint}>Press Enter to send · Shift+Enter for new line</p>
     </div>
   )
 }
 
 const styles = {
   panel: {
-    display: 'flex', flexDirection: 'column', height: '100%',
+    display: 'flex', flexDirection: 'column', flex: 1, height: '100%', minHeight: 0,
     background: 'var(--bg-surface)', borderRadius: '16px',
     border: '1px solid var(--border)', overflow: 'hidden',
   },
@@ -179,6 +181,7 @@ const styles = {
     padding: '1rem 1.25rem',
     borderBottom: '1px solid var(--border)',
     background: 'var(--bg-card)',
+    flexShrink: 0,
   },
   headerLeft: { display: 'flex', alignItems: 'center', gap: '0.75rem' },
   aiIcon: {
@@ -189,7 +192,7 @@ const styles = {
   headerTitle: { fontWeight: '600', fontSize: '0.9rem' },
   headerSub: { fontSize: '0.75rem', color: 'var(--text-muted)' },
   messages: {
-    flex: 1, overflowY: 'auto', padding: '1.25rem',
+    flex: 1, minHeight: 0, overflowY: 'auto', padding: '1.25rem',
     display: 'flex', flexDirection: 'column', gap: '1rem',
   },
   msgMeta: role => ({
@@ -213,9 +216,15 @@ const styles = {
     whiteSpace: 'pre-wrap', color: 'var(--text-primary)',
   },
   sourcesWrap: { display: 'flex', flexWrap: 'wrap', gap: '0.375rem', maxWidth: '85%' },
-  inputRow: {
-    display: 'flex', gap: '0.625rem', padding: '1rem 1.25rem 0.5rem',
+  inputContainer: {
+    display: 'flex', flexDirection: 'column',
+    padding: '1rem 1.25rem 0.5rem',
     borderTop: '1px solid var(--border)',
+    background: 'var(--bg-surface)',
+    flexShrink: 0,
+  },
+  inputRow: {
+    display: 'flex', gap: '0.625rem',
   },
   textarea: {
     flex: 1, padding: '0.625rem 0.875rem',
@@ -225,5 +234,5 @@ const styles = {
     resize: 'none', outline: 'none', transition: 'border-color 0.2s',
     lineHeight: '1.5',
   },
-  hint: { fontSize: '0.7rem', color: 'var(--text-muted)', paddingBottom: '0.75rem', textAlign: 'center' },
+  hint: { fontSize: '0.7rem', color: 'var(--text-muted)', paddingTop: '0.375rem', paddingBottom: '0.25rem', textAlign: 'center' },
 }

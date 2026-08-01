@@ -38,7 +38,7 @@ export default function StudentDashboard() {
   const availableSemesters = selectedYear ? semesters[Number(selectedYear)] : []
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg-base)', display: 'flex', flexDirection: 'column' }}>
+    <div style={{ height: '100vh', maxHeight: '100vh', background: 'var(--bg-base)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
       {/* Navbar */}
       <nav className="navbar">
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
@@ -156,7 +156,7 @@ const styles = {
   mobileTabs: { display: 'flex', borderBottom: '1px solid var(--border)', background: 'var(--bg-surface)' },
   mobileTab: { flex: 1, padding: '0.75rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem', fontSize: '0.875rem', fontWeight: '500', color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', transition: 'all 0.2s', borderBottom: '2px solid transparent' },
   mobileTabActive: { color: 'var(--accent)', borderBottom: '2px solid var(--accent)', background: 'rgba(59,130,246,0.05)' },
-  content: { flex: 1, display: 'flex', gap: '1rem', padding: '1rem 1.5rem', maxWidth: '1400px', width: '100%', margin: '0 auto', height: 'calc(100vh - 162px)' },
-  chatCol: { flex: '1.2', minWidth: 0, flexDirection: 'column' },
-  forumCol: { flex: '1', minWidth: 0, flexDirection: 'column' },
+  content: { flex: 1, minHeight: 0, display: 'flex', gap: '1rem', padding: '1rem 1.5rem', maxWidth: '1400px', width: '100%', margin: '0 auto', height: 'calc(100vh - 162px)', maxHeight: 'calc(100vh - 162px)', overflow: 'hidden' },
+  chatCol: { flex: '1.2', minWidth: 0, height: '100%', maxHeight: '100%', minHeight: 0, flexDirection: 'column' },
+  forumCol: { flex: '1', minWidth: 0, height: '100%', maxHeight: '100%', minHeight: 0, flexDirection: 'column' },
 }

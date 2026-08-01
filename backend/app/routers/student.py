@@ -21,11 +21,11 @@ router = APIRouter(prefix="/student", tags=["Student"])
 gemini_client = genai.Client(api_key=GEMINI_API_KEY) if GEMINI_API_KEY else None
 
 EMBED_MODEL = "gemini-embedding-001"
-TOP_K_RESULTS = 10  # Increased to top 10 context chunks to ensure full coverage of foundational definitions
+TOP_K_RESULTS = 12  # Increased to 12 context chunks to capture intro/fundamental definitions for broad queries
 
 
-def _build_rag_prompt(query: str, contexts: list[dict], max_chunks: int = 10) -> str:
-    """Constructs the RAG prompt from retrieved context chunks (up to top 10)."""
+def _build_rag_prompt(query: str, contexts: list[dict], max_chunks: int = 12) -> str:
+    """Constructs the RAG prompt from retrieved context chunks (up to top 12)."""
     contexts = contexts[:max_chunks]
     context_blocks = []
     for i, ctx in enumerate(contexts, start=1):
@@ -39,10 +39,9 @@ def _build_rag_prompt(query: str, contexts: list[dict], max_chunks: int = 10) ->
 
     context_text = "\n\n---\n\n".join(context_blocks)
 
-    return f"""You are an expert academic AI Tutor. Use the provided textbook excerpts below to answer the student's question.
-If multiple excerpts mention the topic, prioritize foundational definitions found in early chapters or primary textbook sources.
-Do NOT use any external knowledge. If the answer is not found in the context, say:
-"I could not find a relevant answer in the provided textbook material."
+    return f"""You are an AI Tutor. Use the provided textbook excerpts below to answer the student's question.
+If the student asks a broad or foundational question (e.g., 'What is AI?', 'History of AI', 'Applications'), prioritize intro definitions or basic summaries from early chapters found in the context over specific technical deep-dives.
+If the context contains enough relevant details, answer fully. Otherwise, summarize what is available.
 
 For every claim or statement in your answer, you MUST cite the source using the format: [Source N].
 At the end of your answer, list all cited sources in the format:
