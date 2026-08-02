@@ -1,17 +1,28 @@
 import { useState, useEffect, useRef } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { supabase } from '../lib/supabaseClient'
-import { Send, BookOpen, Sparkles, Bot, User, AlertCircle } from 'lucide-react'
+import {
+  Send, BookOpen, Sparkles, User, AlertCircle,
+  ChevronDown, PanelRightClose, PanelRightOpen
+} from 'lucide-react'
 
 const API = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000'
 
-export default function ChatPanel({ subjectId }) {
+export default function ChatPanel({
+  selectedYear, setSelectedYear,
+  selectedSemester, setSelectedSemester,
+  years, availableSemesters,
+  subjects, selectedSubject, setSelectedSubject, setSubjects,
+  activeChatTitle,
+  historyOpen, setHistoryOpen,
+  answerStyle
+}) {
   const { user } = useAuth()
   const [messages, setMessages] = useState([
     {
-      id: 'welcome',
+      id: 'welcome-initial',
       role: 'assistant',
-      text: '👋 Hi! I\'m your AI Tutor. Ask me anything about the selected subject — I\'ll answer using your textbooks and cite the source pages.',
+      text: "👋 Hi! I'm Mathisis AI. Select a subject to get started.",
       sources: [],
     }
   ])
@@ -23,18 +34,46 @@ export default function ChatPanel({ subjectId }) {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
-  // Reset chat when subject changes
+  // Change message when subject changes
   useEffect(() => {
-    setMessages([{
-      id: 'welcome',
-      role: 'assistant',
-      text: '📚 Subject selected! Ask me anything — I\'ll find answers from your textbooks.',
-      sources: [],
-    }])
-  }, [subjectId])
+    if (selectedSubject) {
+      setMessages([
+        {
+          id: 'welcome-' + selectedSubject.id,
+          role: 'assistant',
+          text: `📚 Ready to study **${selectedSubject.subject_name}**! Ask me any concept, formula, or exam question, and I'll retrieve answers directly from your course materials.`,
+          sources: [],
+        }
+      ])
+    } else {
+      setMessages([
+        {
+          id: 'welcome-initial',
+          role: 'assistant',
+          text: "👋 Hi! I'm Mathisis AI. Select a subject to get started.",
+          sources: [],
+        }
+      ])
+    }
+  }, [selectedSubject?.id])
+
+  // Load chat topic from history
+  useEffect(() => {
+    if (activeChatTitle && activeChatTitle !== 'New Conversation' && activeChatTitle !== 'Default') {
+      setMessages(prev => [
+        ...prev,
+        {
+          id: Date.now(),
+          role: 'assistant',
+          text: `Loaded topic: **${activeChatTitle}**. What would you like to explore regarding this topic?`,
+          sources: []
+        }
+      ])
+    }
+  }, [activeChatTitle])
 
   const sendMessage = async () => {
-    if (!input.trim() || loading || !subjectId) return
+    if (!input.trim() || loading || !selectedSubject?.id) return
 
     const userMsg = { id: Date.now(), role: 'user', text: input }
     setMessages(prev => [...prev, userMsg])
@@ -51,7 +90,11 @@ export default function ChatPanel({ subjectId }) {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ subject_id: subjectId, query: input }),
+        body: JSON.stringify({
+          subject_id: selectedSubject.id,
+          query: input,
+          answer_style: answerStyle || 'concise'
+        }),
       })
 
       const data = await res.json()
@@ -84,40 +127,119 @@ export default function ChatPanel({ subjectId }) {
 
   return (
     <div style={styles.panel}>
-      {/* 1. Header (flex-none) */}
+      {/* 1. Header (Subject Selectors & Right Sidebar Toggle) */}
       <div style={styles.header}>
         <div style={styles.headerLeft}>
-          <div style={styles.aiIcon}><Bot size={18} color="#60a5fa" /></div>
+          <div style={styles.aiLogoIcon}>
+            <Sparkles size={20} color="#0B0C10" />
+          </div>
           <div>
-            <p style={styles.headerTitle}>AI Tutor</p>
-            <p style={styles.headerSub}>{subjectId ? 'Ready to answer' : 'Select a subject first'}</p>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <h2 style={styles.headerTitle}>Mathisis AI</h2>
+              <span className="badge badge-green">
+                <Sparkles size={10} /> {answerStyle === 'detailed' ? 'Detailed Mode' : 'Concise Mode'}
+              </span>
+            </div>
+            <p style={styles.headerSub}>
+              {selectedSubject ? `Active: ${selectedSubject.subject_name}` : 'Select your Year, Semester & Subject to start'}
+            </p>
           </div>
         </div>
-        <span className="badge badge-blue"><Sparkles size={11} /> Gemini 2.0</span>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', flexWrap: 'wrap' }}>
+          {/* Inline Filters */}
+          <div style={styles.filterGroup}>
+            <select
+              id="chat-year-select"
+              className="select-field"
+              value={selectedYear}
+              onChange={e => {
+                setSelectedYear(e.target.value)
+                setSelectedSemester('')
+                setSubjects([])
+                setSelectedSubject(null)
+              }}
+              style={styles.selectInput}
+            >
+              <option value="">Year</option>
+              {years?.map(y => <option key={y} value={y}>Year {y}</option>)}
+            </select>
+
+            <select
+              id="chat-sem-select"
+              className="select-field"
+              value={selectedSemester}
+              onChange={e => {
+                setSelectedSemester(e.target.value)
+                setSelectedSubject(null)
+              }}
+              disabled={!selectedYear}
+              style={styles.selectInput}
+            >
+              <option value="">Semester</option>
+              {availableSemesters?.map(s => <option key={s} value={s}>Sem {s}</option>)}
+            </select>
+
+            <select
+              id="chat-subject-select"
+              className="select-field"
+              value={selectedSubject?.id || ''}
+              onChange={e => {
+                const sub = subjects.find(s => s.id === e.target.value)
+                setSelectedSubject(sub || null)
+              }}
+              disabled={!selectedSemester || subjects.length === 0}
+              style={{ ...styles.selectInput, minWidth: '150px' }}
+            >
+              <option value="">{subjects.length ? 'Subject...' : 'No subject'}</option>
+              {subjects.map(s => <option key={s.id} value={s.id}>{s.subject_name}</option>)}
+            </select>
+          </div>
+
+          {/* Top Right Toggle Button for Right Sidebar */}
+          <button
+            onClick={() => setHistoryOpen(!historyOpen)}
+            style={styles.historyToggleBtn}
+            title={historyOpen ? 'Close Chat History' : 'Open Chat History'}
+          >
+            {historyOpen ? <PanelRightClose size={18} /> : <PanelRightOpen size={18} />}
+          </button>
+        </div>
       </div>
 
-      {/* 2. Message History Area (flex-1 min-h-0 overflow-y-auto) */}
-      <div style={styles.messages}>
+      {/* 2. Messages Container */}
+      <div style={styles.messagesContainer}>
         {messages.map(msg => (
-          <div key={msg.id} className="fade-in-up"
-            style={{ display: 'flex', flexDirection: 'column', alignItems: msg.role === 'user' ? 'flex-end' : 'flex-start', gap: '0.375rem' }}>
+          <div
+            key={msg.id}
+            className="fade-in-up"
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: msg.role === 'user' ? 'flex-end' : 'flex-start',
+              gap: '0.4rem',
+            }}
+          >
+            {/* Meta */}
             <div style={styles.msgMeta(msg.role)}>
-              {msg.role !== 'user' && (msg.role === 'error' ? <AlertCircle size={13} /> : <Bot size={13} />)}
-              <span>{msg.role === 'user' ? 'You' : msg.role === 'error' ? 'Error' : 'AI Tutor'}</span>
+              {msg.role !== 'user' && (msg.role === 'error' ? <AlertCircle size={13} /> : <Sparkles size={13} color="var(--accent-green)" />)}
+              <span>{msg.role === 'user' ? 'You' : msg.role === 'error' ? 'System Error' : 'Mathisis AI'}</span>
               {msg.role === 'user' && <User size={13} />}
             </div>
 
+            {/* Bubble */}
             <div style={styles.bubble(msg.role)}>
               <p style={styles.bubbleText}>{msg.text}</p>
             </div>
 
-            {/* Source Badges */}
+            {/* Citations */}
             {msg.sources?.length > 0 && (
               <div style={styles.sourcesWrap}>
+                <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', alignSelf: 'center' }}>Sources:</span>
                 {msg.sources.map((src, i) => (
-                  <span key={i} className="badge badge-blue" style={{ fontSize: '0.72rem' }}>
+                  <span key={i} className="badge badge-green" style={{ fontSize: '0.72rem' }}>
                     <BookOpen size={11} />
-                    {src.book_name}{src.page_number ? ` — Page ${src.page_number}` : ''}
+                    {src.book_name}{src.page_number ? ` (p. ${src.page_number})` : ''}
                   </span>
                 ))}
               </div>
@@ -125,12 +247,12 @@ export default function ChatPanel({ subjectId }) {
           </div>
         ))}
 
-        {/* Typing indicator */}
+        {/* Loading Indicator */}
         {loading && (
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }} className="fade-in-up">
-            <div style={styles.aiIcon}><Bot size={14} color="#60a5fa" /></div>
+            <div style={styles.aiAvatarMini}><Sparkles size={14} color="var(--accent-green)" /></div>
             <div style={{ ...styles.bubble('assistant'), padding: '0.625rem 1rem' }}>
-              <div style={{ display: 'flex', gap: '5px' }}>
+              <div style={{ display: 'flex', gap: '5px', alignItems: 'center' }}>
                 <span className="typing-dot" />
                 <span className="typing-dot" />
                 <span className="typing-dot" />
@@ -141,30 +263,36 @@ export default function ChatPanel({ subjectId }) {
         <div ref={messagesEndRef} />
       </div>
 
-      {/* 3. Bottom Input Box Container (flex-none pinned to bottom) */}
-      <div style={styles.inputContainer}>
+      {/* 3. Pinned Input Bar */}
+      <div style={styles.inputBarContainer}>
         <div style={styles.inputRow}>
           <textarea
             id="chat-input"
             style={styles.textarea}
-            placeholder={subjectId ? 'Ask a question about your textbook...' : 'Select a subject to start chatting...'}
+            placeholder={
+              selectedSubject
+                ? `Ask Mathisis AI anything about ${selectedSubject.subject_name}...`
+                : 'Select your subject first to ask Mathisis AI...'
+            }
             value={input}
             onChange={e => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
             rows={1}
-            disabled={!subjectId || loading}
+            disabled={!selectedSubject?.id || loading}
           />
           <button
             id="chat-send-btn"
             className="btn-primary"
             onClick={sendMessage}
-            disabled={!input.trim() || loading || !subjectId}
-            style={{ padding: '0.625rem 1rem', minWidth: '48px', borderRadius: '10px' }}
+            disabled={!input.trim() || loading || !selectedSubject?.id}
+            style={styles.sendBtn}
           >
-            <Send size={16} />
+            <Send size={18} />
           </button>
         </div>
-        <p style={styles.hint}>Press Enter to send · Shift+Enter for new line</p>
+        <p style={styles.inputHint}>
+          Press <kbd style={styles.kbd}>Enter</kbd> to send · <kbd style={styles.kbd}>Shift + Enter</kbd> for new line
+        </p>
       </div>
     </div>
   )
@@ -172,67 +300,167 @@ export default function ChatPanel({ subjectId }) {
 
 const styles = {
   panel: {
-    display: 'flex', flexDirection: 'column', flex: 1, height: '100%', minHeight: 0,
-    background: 'var(--bg-surface)', borderRadius: '16px',
-    border: '1px solid var(--border)', overflow: 'hidden',
+    display: 'flex',
+    flexDirection: 'column',
+    flex: 1,
+    height: '100%',
+    minHeight: 0,
+    background: 'var(--bg-panel)',
+    overflow: 'hidden',
   },
   header: {
-    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-    padding: '1rem 1.25rem',
-    borderBottom: '1px solid var(--border)',
-    background: 'var(--bg-card)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: '0.875rem 1.25rem',
+    borderBottom: '1px solid var(--border-color)',
+    background: 'var(--bg-panel)',
     flexShrink: 0,
+    gap: '0.75rem',
+    flexWrap: 'wrap',
   },
-  headerLeft: { display: 'flex', alignItems: 'center', gap: '0.75rem' },
-  aiIcon: {
-    width: '34px', height: '34px', borderRadius: '10px',
-    background: 'rgba(59,130,246,0.15)', border: '1px solid rgba(59,130,246,0.25)',
-    display: 'flex', alignItems: 'center', justifyContent: 'center',
+  headerLeft: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.75rem',
   },
-  headerTitle: { fontWeight: '600', fontSize: '0.9rem' },
-  headerSub: { fontSize: '0.75rem', color: 'var(--text-muted)' },
-  messages: {
-    flex: 1, minHeight: 0, overflowY: 'auto', padding: '1.25rem',
-    display: 'flex', flexDirection: 'column', gap: '1rem',
+  aiLogoIcon: {
+    width: '36px',
+    height: '36px',
+    borderRadius: '10px',
+    background: 'var(--accent-green)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    boxShadow: '0 0 12px var(--shadow-glow)',
+  },
+  headerTitle: {
+    fontWeight: '700',
+    fontSize: '1rem',
+    color: 'var(--text-primary)',
+  },
+  headerSub: {
+    fontSize: '0.75rem',
+    color: 'var(--text-muted)',
+  },
+  filterGroup: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.5rem',
+  },
+  selectInput: {
+    minWidth: '95px',
+    padding: '0.4rem 1.75rem 0.4rem 0.75rem',
+    fontSize: '0.78rem',
+  },
+  historyToggleBtn: {
+    background: 'var(--bg-card)',
+    border: '1px solid var(--border-color)',
+    borderRadius: '10px',
+    padding: '0.5rem',
+    color: 'var(--text-muted)',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    transition: 'all 0.2s',
+  },
+  messagesContainer: {
+    flex: 1,
+    minHeight: 0,
+    overflowY: 'auto',
+    padding: '1.25rem',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '1rem',
+    background: 'var(--bg-panel)',
   },
   msgMeta: role => ({
-    display: 'flex', alignItems: 'center', gap: '0.35rem',
-    fontSize: '0.72rem', color: 'var(--text-muted)',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.35rem',
+    fontSize: '0.72rem',
+    color: 'var(--text-muted)',
     flexDirection: role === 'user' ? 'row-reverse' : 'row',
   }),
   bubble: role => ({
-    maxWidth: '85%',
-    padding: '0.75rem 1rem',
-    borderRadius: role === 'user' ? '14px 14px 4px 14px' : '14px 14px 14px 4px',
-    background: role === 'user'
-      ? 'linear-gradient(135deg, var(--accent), #6366f1)'
-      : role === 'error'
-        ? 'rgba(239,68,68,0.1)'
-        : 'var(--bg-card)',
-    border: `1px solid ${role === 'user' ? 'transparent' : role === 'error' ? 'rgba(239,68,68,0.25)' : 'var(--border)'}`,
+    maxWidth: '82%',
+    padding: '0.875rem 1.125rem',
+    borderRadius: '16px',
+    background: role === 'user' ? 'var(--bg-card)' : role === 'error' ? 'rgba(239, 68, 68, 0.12)' : 'var(--bg-card)',
+    border: `1px solid ${
+      role === 'user' ? 'var(--accent-green)' : role === 'error' ? 'rgba(239, 68, 68, 0.3)' : 'var(--border-color)'
+    }`,
+    boxShadow: role === 'user' ? '0 2px 8px var(--shadow-glow)' : 'none',
   }),
   bubbleText: {
-    fontSize: '0.875rem', lineHeight: '1.6',
-    whiteSpace: 'pre-wrap', color: 'var(--text-primary)',
+    fontSize: '0.9rem',
+    lineHeight: '1.6',
+    whiteSpace: 'pre-wrap',
+    color: 'var(--text-primary)',
   },
-  sourcesWrap: { display: 'flex', flexWrap: 'wrap', gap: '0.375rem', maxWidth: '85%' },
-  inputContainer: {
-    display: 'flex', flexDirection: 'column',
-    padding: '1rem 1.25rem 0.5rem',
-    borderTop: '1px solid var(--border)',
-    background: 'var(--bg-surface)',
+  sourcesWrap: {
+    display: 'flex',
+    flexWrap: 'wrap',
+    gap: '0.375rem',
+    maxWidth: '82%',
+  },
+  aiAvatarMini: {
+    width: '28px',
+    height: '28px',
+    borderRadius: '8px',
+    background: 'var(--bg-card)',
+    border: '1px solid var(--border-color)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  inputBarContainer: {
+    display: 'flex',
+    flexDirection: 'column',
+    padding: '1rem 1.25rem 0.75rem',
+    borderTop: '1px solid var(--border-color)',
+    background: 'var(--bg-panel)',
     flexShrink: 0,
   },
   inputRow: {
-    display: 'flex', gap: '0.625rem',
+    display: 'flex',
+    gap: '0.75rem',
+    alignItems: 'center',
   },
   textarea: {
-    flex: 1, padding: '0.625rem 0.875rem',
-    background: 'var(--bg-base)', border: '1px solid var(--border)',
-    borderRadius: '10px', color: 'var(--text-primary)',
-    fontSize: '0.875rem', fontFamily: "'Inter', sans-serif",
-    resize: 'none', outline: 'none', transition: 'border-color 0.2s',
+    flex: 1,
+    padding: '0.75rem 1rem',
+    background: 'var(--bg-card)',
+    border: '1.5px solid var(--border-color)',
+    borderRadius: '14px',
+    color: 'var(--text-primary)',
+    fontSize: '0.875rem',
+    fontFamily: "'Helvetica', 'Arial', sans-serif",
+    resize: 'none',
+    outline: 'none',
+    transition: 'border-color 0.2s',
     lineHeight: '1.5',
   },
-  hint: { fontSize: '0.7rem', color: 'var(--text-muted)', paddingTop: '0.375rem', paddingBottom: '0.25rem', textAlign: 'center' },
+  sendBtn: {
+    width: '46px',
+    height: '46px',
+    borderRadius: '12px',
+    padding: 0,
+    flexShrink: 0,
+  },
+  inputHint: {
+    fontSize: '0.72rem',
+    color: 'var(--text-muted)',
+    marginTop: '0.5rem',
+    textAlign: 'center',
+  },
+  kbd: {
+    background: 'var(--bg-card)',
+    border: '1px solid var(--border-color)',
+    borderRadius: '4px',
+    padding: '1px 5px',
+    fontSize: '0.68rem',
+    color: 'var(--text-primary)',
+  },
 }

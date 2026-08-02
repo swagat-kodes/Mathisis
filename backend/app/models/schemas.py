@@ -13,6 +13,7 @@ class SubjectCreate(BaseModel):
 class AskRequest(BaseModel):
     subject_id: str
     query: str = Field(..., min_length=3, max_length=1000)
+    answer_style: Optional[str] = Field("concise", pattern="^(concise|detailed)$")
 
 
 class Source(BaseModel):

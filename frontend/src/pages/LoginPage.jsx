@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { supabase } from '../lib/supabaseClient'
 import toast from 'react-hot-toast'
-import { BookOpen, LogIn, Mail, Lock } from 'lucide-react'
+import { Sparkles, LogIn, Mail, Lock } from 'lucide-react'
 
 export default function LoginPage() {
   const { signIn } = useAuth()
@@ -17,14 +17,12 @@ export default function LoginPage() {
     e.preventDefault()
     setLoading(true)
 
-    // 1. Authenticate with Supabase Auth
     const { data, error } = await signIn(form.email, form.password)
     if (error) {
       setLoading(false)
       return toast.error(error.message)
     }
 
-    // 2. Fetch role directly from the profiles table
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
       .select('role')
@@ -34,12 +32,11 @@ export default function LoginPage() {
     setLoading(false)
 
     if (profileError || !profile) {
-      console.error('Error fetching profile:', profileError)
-      toast.error('Could not load your profile. Please try again.')
+      toast.error('Could not load profile. Routing to student dashboard.')
+      navigate('/student', { replace: true })
       return
     }
 
-    // 3. Route based on actual DB role — no race condition
     if (profile.role === 'admin') {
       navigate('/admin', { replace: true })
     } else {
@@ -49,25 +46,22 @@ export default function LoginPage() {
 
   return (
     <div style={styles.page}>
-      {/* Background orbs */}
-      <div style={styles.orb1} />
-      <div style={styles.orb2} />
+      <div style={styles.glowOrb} />
 
       <div className="glass fade-in-up" style={styles.card}>
-        {/* Logo */}
         <div style={styles.logoWrap}>
           <div style={styles.logoIcon}>
-            <BookOpen size={28} color="#60a5fa" />
+            <Sparkles size={24} color="#0B0C10" />
           </div>
-          <h1 style={styles.logoText} className="gradient-text">Mathisis</h1>
+          <h1 style={styles.logoText}>Mathisis AI</h1>
         </div>
-        <p style={styles.tagline}>AI-powered learning for engineers</p>
+        <p style={styles.tagline}>Smart, Personalized Engineering AI Companion</p>
 
         <h2 style={styles.heading}>Welcome back</h2>
 
         <form onSubmit={handleSubmit} style={styles.form}>
           <div style={styles.fieldWrap}>
-            <label style={styles.label}>Email</label>
+            <label style={styles.label}>Email Address</label>
             <div style={styles.inputWrap}>
               <Mail size={16} style={styles.inputIcon} />
               <input
@@ -102,7 +96,7 @@ export default function LoginPage() {
             </div>
           </div>
 
-          <button id="login-submit" className="btn-primary" type="submit" disabled={loading} style={{ width: '100%', marginTop: '0.5rem' }}>
+          <button id="login-submit" className="btn-primary" type="submit" disabled={loading} style={{ width: '100%', marginTop: '0.5rem', height: '44px' }}>
             {loading
               ? <><span className="typing-dot"/><span className="typing-dot"/><span className="typing-dot"/></>
               : <><LogIn size={16}/> Sign In</>
@@ -112,7 +106,7 @@ export default function LoginPage() {
 
         <p style={styles.switchText}>
           Don't have an account?{' '}
-          <Link to="/signup" style={styles.link}>Sign up</Link>
+          <Link to="/signup" style={styles.link}>Create one</Link>
         </p>
       </div>
     </div>
@@ -120,47 +114,19 @@ export default function LoginPage() {
 }
 
 const styles = {
-  page: {
-    minHeight: '100vh',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    position: 'relative',
-    overflow: 'hidden',
-    background: 'var(--bg-base)',
-  },
-  orb1: {
-    position: 'absolute', top: '-100px', left: '-100px',
-    width: '500px', height: '500px', borderRadius: '50%',
-    background: 'radial-gradient(circle, rgba(59,130,246,0.15), transparent 70%)',
-    pointerEvents: 'none',
-  },
-  orb2: {
-    position: 'absolute', bottom: '-150px', right: '-100px',
-    width: '500px', height: '500px', borderRadius: '50%',
-    background: 'radial-gradient(circle, rgba(99,102,241,0.12), transparent 70%)',
-    pointerEvents: 'none',
-  },
-  card: {
-    width: '100%', maxWidth: '420px', padding: '2.5rem',
-    display: 'flex', flexDirection: 'column', gap: '1rem',
-    position: 'relative', zIndex: 1,
-  },
+  page: { minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', overflow: 'hidden', background: 'var(--bg-main)' },
+  glowOrb: { position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: '600px', height: '600px', borderRadius: '50%', background: 'radial-gradient(circle, var(--shadow-glow), transparent 70%)', pointerEvents: 'none' },
+  card: { width: '100%', maxWidth: '420px', padding: '2.5rem', display: 'flex', flexDirection: 'column', gap: '1rem', position: 'relative', zIndex: 1 },
   logoWrap: { display: 'flex', alignItems: 'center', gap: '0.75rem' },
-  logoIcon: {
-    width: '44px', height: '44px', borderRadius: '12px',
-    background: 'linear-gradient(135deg, rgba(59,130,246,0.2), rgba(99,102,241,0.2))',
-    border: '1px solid rgba(59,130,246,0.3)',
-    display: 'flex', alignItems: 'center', justifyContent: 'center',
-  },
-  logoText: { fontFamily: "'Outfit', sans-serif", fontSize: '1.75rem', fontWeight: '800' },
+  logoIcon: { width: '44px', height: '44px', borderRadius: '12px', background: 'var(--accent-green)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 0 16px var(--shadow-glow)' },
+  logoText: { fontSize: '1.75rem', fontWeight: '800', color: 'var(--text-primary)' },
   tagline: { color: 'var(--text-muted)', fontSize: '0.85rem', marginTop: '-0.5rem' },
   heading: { fontSize: '1.25rem', fontWeight: '700', color: 'var(--text-primary)', marginTop: '0.5rem' },
   form: { display: 'flex', flexDirection: 'column', gap: '1rem' },
   fieldWrap: { display: 'flex', flexDirection: 'column', gap: '0.375rem' },
-  label: { fontSize: '0.8rem', fontWeight: '500', color: 'var(--text-secondary)' },
+  label: { fontSize: '0.8rem', fontWeight: '600', color: 'var(--text-muted)' },
   inputWrap: { position: 'relative' },
   inputIcon: { position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' },
   switchText: { textAlign: 'center', fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: '0.5rem' },
-  link: { color: 'var(--accent)', textDecoration: 'none', fontWeight: '500' },
+  link: { color: 'var(--accent-green)', textDecoration: 'none', fontWeight: '700' },
 }

@@ -21,11 +21,11 @@ router = APIRouter(prefix="/student", tags=["Student"])
 gemini_client = genai.Client(api_key=GEMINI_API_KEY) if GEMINI_API_KEY else None
 
 EMBED_MODEL = "gemini-embedding-001"
-TOP_K_RESULTS = 12  # Increased to 12 context chunks to capture intro/fundamental definitions for broad queries
+TOP_K_RESULTS = 12
 
 
-def _build_rag_prompt(query: str, contexts: list[dict], max_chunks: int = 12) -> str:
-    """Constructs the RAG prompt from retrieved context chunks (up to top 12)."""
+def _build_rag_prompt(query: str, contexts: list[dict], answer_style: str = "concise", max_chunks: int = 12) -> str:
+    """Constructs the RAG prompt from retrieved context chunks."""
     contexts = contexts[:max_chunks]
     context_blocks = []
     for i, ctx in enumerate(contexts, start=1):
@@ -39,10 +39,16 @@ def _build_rag_prompt(query: str, contexts: list[dict], max_chunks: int = 12) ->
 
     context_text = "\n\n---\n\n".join(context_blocks)
 
-    return f"""You are an AI Tutor. Use the provided textbook excerpts below to answer the student's question.
-If the student asks a broad or foundational question (e.g., 'What is AI?', 'History of AI', 'Applications'), prioritize intro definitions or basic summaries from early chapters found in the context over specific technical deep-dives.
-If the context contains enough relevant details, answer fully. Otherwise, summarize what is available.
+    style_instruction = (
+        "Keep your response concise, direct, and focused on key facts/definitions."
+        if answer_style == "concise"
+        else "Provide a comprehensive, detailed, step-by-step explanation with clear examples."
+    )
 
+    return f"""You are Mathisis AI, an engineering AI companion. Use the provided textbook excerpts below to answer the student's question.
+Response Style Instruction: {style_instruction}
+
+If the student asks a broad or foundational question, prioritize intro definitions or basic summaries from early chapters found in the context.
 For every claim or statement in your answer, you MUST cite the source using the format: [Source N].
 At the end of your answer, list all cited sources in the format:
 📖 [Book Name] — Page [X]
@@ -62,7 +68,7 @@ async def _embed_query_with_retry(query: str, retries: int = 4) -> list[float]:
     if not api_key:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="GEMINI_API_KEY environment variable is missing. Please add GEMINI_API_KEY to backend/.env",
+            detail="GEMINI_API_KEY environment variable is missing.",
         )
     client = gemini_client or genai.Client(api_key=api_key)
     for attempt in range(retries):
@@ -88,12 +94,12 @@ async def _embed_query_with_retry(query: str, retries: int = 4) -> list[float]:
 
 
 def _generate_with_groq(prompt: str) -> str:
-    """Generates chat answer using Groq's super-fast Llama 3 model (llama-3.3-70b-versatile)."""
+    """Generates chat answer using Groq Llama 3.3 70B."""
     api_key = GROQ_API_KEY or os.getenv("GROQ_API_KEY")
     if not api_key:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="GROQ_API_KEY environment variable is missing. Please set GROQ_API_KEY in backend/.env",
+            detail="GROQ_API_KEY environment variable is missing.",
         )
     client = Groq(api_key=api_key)
     chat_completion = client.chat.completions.create(
@@ -106,7 +112,6 @@ def _generate_with_groq(prompt: str) -> str:
         model="llama-3.3-70b-versatile",
     )
     return chat_completion.choices[0].message.content
-
 
 
 @router.get("/subjects")
@@ -127,32 +132,83 @@ async def list_subjects(
     return result.data
 
 
+@router.get("/materials")
+async def list_materials(
+    year: Optional[int] = Query(None, ge=1, le=4),
+    semester: Optional[int] = Query(None, ge=1, le=8),
+    subject_id: Optional[str] = Query(None),
+):
+    """Lists uploaded textbook materials for documentation grid."""
+    supabase = get_supabase()
+    
+    # 1. Fetch subjects first to filter materials by year/semester
+    subj_query = supabase.table("subjects").select("*")
+    if year is not None:
+        subj_query = subj_query.eq("year", year)
+    if semester is not None:
+        subj_query = subj_query.eq("semester", semester)
+    if subject_id:
+        subj_query = subj_query.eq("id", subject_id)
+
+    subjs = subj_query.execute().data or []
+    if not subjs:
+        return []
+
+    subj_dict = {s["id"]: s for s in subjs}
+    target_subject_ids = list(subj_dict.keys())
+
+    # 2. Fetch distinct books/materials from textbook_embeddings for target subjects
+    emb_query = (
+        supabase.table("textbook_embeddings")
+        .select("subject_id, book_name, page_number")
+        .in_("subject_id", target_subject_ids)
+        .execute()
+    )
+
+    rows = emb_query.data or []
+    materials_map = {}
+    for r in rows:
+        sid = r["subject_id"]
+        bname = r["book_name"]
+        key = (sid, bname)
+        if key not in materials_map:
+            s_info = subj_dict.get(sid, {})
+            materials_map[key] = {
+                "id": f"{sid}-{bname}",
+                "subject_id": sid,
+                "book_name": bname,
+                "subject_name": s_info.get("subject_name", "General"),
+                "year": s_info.get("year"),
+                "semester": s_info.get("semester"),
+                "max_page": r.get("page_number") or 1,
+            }
+        else:
+            p = r.get("page_number") or 1
+            if p > materials_map[key]["max_page"]:
+                materials_map[key]["max_page"] = p
+
+    return list(materials_map.values())
+
+
 @router.post("/ask", response_model=AskResponse)
 async def ask_question(
     request: AskRequest,
     _user=Depends(get_current_user),
 ):
-    """
-    Student RAG endpoint.
-    1. Embed the query with gemini-embedding-001
-    2. Call match_embeddings RPC for top-K context chunks
-    3. Build RAG prompt and generate answer (model fallback + exponential backoff)
-    4. Return answer + source citations
-    """
+    """Student RAG endpoint with answer_style support."""
     supabase = get_supabase()
 
-    # ── Step 1: Embed query ────────────────────────────────
+    # Step 1: Embed query
     try:
         query_embedding = await _embed_query_with_retry(request.query)
     except Exception as exc:
-        print("🔥 REAL BACKEND ERROR (Embed):", str(exc))
-        logger.error("🔥 REAL BACKEND ERROR (Embed): %s", exc)
+        logger.error("Failed to embed query: %s", exc)
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail=f"Failed to embed query: {exc}",
         )
 
-    # ── Step 2: Vector similarity search ──────────────────
+    # Step 2: Vector similarity search
     try:
         rpc_result = supabase.rpc(
             "match_embeddings",
@@ -164,8 +220,7 @@ async def ask_question(
         ).execute()
         contexts = rpc_result.data or []
     except Exception as exc:
-        print("🔥 REAL BACKEND ERROR (Vector Search):", str(exc))
-        logger.error("🔥 REAL BACKEND ERROR (Vector Search): %s", exc)
+        logger.error("Vector search failed: %s", exc)
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail=f"Vector search failed: {exc}",
@@ -178,24 +233,23 @@ async def ask_question(
             sources=[],
         )
 
-    # ── Step 3: Small inter-operation delay to prevent RPM burst ──
     await asyncio.sleep(1)
 
-    # ── Step 4: Generate answer with Groq (Llama 3.3 70B) ──
+    # Step 3: Generate answer with Groq (Llama 3.3 70B)
     try:
-        prompt = _build_rag_prompt(request.query, contexts)
+        style = request.answer_style or "concise"
+        prompt = _build_rag_prompt(request.query, contexts, answer_style=style)
         answer_text = _generate_with_groq(prompt)
     except HTTPException:
         raise
     except Exception as exc:
-        print("🔥 REAL BACKEND ERROR (Groq Answer Generation):", str(exc))
-        logger.error("🔥 REAL BACKEND ERROR (Groq Answer Generation): %s", exc)
+        logger.error("Groq generation failed: %s", exc)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Groq generation failed: {exc}",
         )
 
-    # ── Step 4: Build deduplicated source list ─────────────
+    # Step 4: Build deduplicated source list
     seen = set()
     sources: list[Source] = []
     for ctx in contexts:

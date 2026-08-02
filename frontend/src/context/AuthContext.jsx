@@ -40,12 +40,22 @@ export function AuthProvider({ children }) {
     return () => subscription.unsubscribe()
   }, [])
 
-  const signUp = async (email, password, fullName) => {
+  const signUp = async (email, password, fullName, role = 'student') => {
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
-      options: { data: { full_name: fullName } },
+      options: { data: { full_name: fullName, role: role } },
     })
+
+    if (!error && data?.user) {
+      // Upsert profile with selected role in Supabase
+      await supabase.from('profiles').upsert({
+        id: data.user.id,
+        email,
+        full_name: fullName,
+        role: role,
+      })
+    }
     return { data, error }
   }
 
@@ -56,6 +66,8 @@ export function AuthProvider({ children }) {
 
   const signOut = async () => {
     await supabase.auth.signOut()
+    setUser(null)
+    setProfile(null)
   }
 
   return (
