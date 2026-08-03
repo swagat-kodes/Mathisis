@@ -133,6 +133,7 @@ export default function StudentDashboard() {
       {/* Dynamic Backdrop Overlay for Mobile/Tablet Off-canvas drawers */}
       {!isDesktop && (sidebarOpen || historyOpen) && (
         <div
+          className="mobile-overlay"
           onClick={() => {
             setSidebarOpen(false)
             setHistoryOpen(false)
@@ -143,7 +144,6 @@ export default function StudentDashboard() {
             background: 'rgba(0, 0, 0, 0.65)',
             backdropFilter: 'blur(4px)',
             zIndex: 40,
-            transition: 'opacity 0.2s ease',
           }}
         />
       )}
@@ -151,8 +151,9 @@ export default function StudentDashboard() {
       {/* Main 3-Column Layout */}
       <div style={styles.mainLayout}>
 
-        {/* ── LEFT SIDEBAR (Inline on Desktop, Slide-over Drawer on Mobile/Tablet) ── */}
+        {/* ── LEFT SIDEBAR (Inline on Desktop, Animated Drawer on Mobile/Tablet) ── */}
         <aside
+          className={!isDesktop && sidebarOpen ? 'mobile-drawer-left' : ''}
           style={{
             ...styles.leftSidebar,
             position: isDesktop ? 'relative' : 'fixed',
@@ -160,38 +161,41 @@ export default function StudentDashboard() {
             left: 0,
             bottom: 0,
             zIndex: isDesktop ? 1 : 50,
-            width: isDesktop ? (sidebarOpen ? '275px' : '0px') : '285px',
-            minWidth: isDesktop ? (sidebarOpen ? '275px' : '0px') : '285px',
+            width: isDesktop ? (sidebarOpen ? '275px' : '0px') : '290px',
+            minWidth: isDesktop ? (sidebarOpen ? '275px' : '0px') : '290px',
             padding: (isDesktop ? sidebarOpen : true) ? '1.25rem 1rem' : '0px',
             borderRight: (isDesktop ? sidebarOpen : true) ? '1px solid var(--border-color)' : 'none',
             overflowY: 'auto',
             overflowX: 'hidden',
-            transform: !isDesktop ? (sidebarOpen ? 'translateX(0)' : 'translateX(-100%)') : 'none',
-            transition: 'all 0.25s ease',
-            boxShadow: (!isDesktop && sidebarOpen) ? '4px 0 24px rgba(0,0,0,0.5)' : 'none',
+            display: isDesktop ? (sidebarOpen ? 'flex' : 'none') : (sidebarOpen ? 'flex' : 'none'),
+            transition: isDesktop ? 'all 0.25s ease' : 'none',
+            boxShadow: (!isDesktop && sidebarOpen) ? '6px 0 28px rgba(0,0,0,0.6)' : 'none',
           }}
         >
-          {/* Header & Mobile Close Button */}
+          {/* Header & Logo (Fixed uncluttered layout so Admin badge and close button X never collide) */}
           <div style={styles.logoWrap}>
-            <div style={styles.logoIcon}>
-              <Sparkles size={20} color="#0B0C10" />
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0 }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span style={styles.brandTitle}>Mathisis AI</span>
-                {isAdmin && (
-                  <span className="badge badge-green" style={{ fontSize: '0.62rem', padding: '0.15rem 0.45rem', flexShrink: 0 }}>
-                    <Shield size={9} /> Admin
-                  </span>
-                )}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flex: 1, minWidth: 0 }}>
+              <div style={styles.logoIcon}>
+                <Sparkles size={20} color="#0B0C10" />
               </div>
-              <span style={styles.brandSubtitle}>Engineering Companion</span>
+              <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
+                  <span style={styles.brandTitle}>Mathisis AI</span>
+                  {isAdmin && (
+                    <span className="badge badge-green" style={{ fontSize: '0.62rem', padding: '0.15rem 0.45rem', flexShrink: 0 }}>
+                      <Shield size={9} /> Admin
+                    </span>
+                  )}
+                </div>
+                <span style={styles.brandSubtitle}>Engineering Companion</span>
+              </div>
             </div>
+
             {!isDesktop && (
               <button
                 onClick={() => setSidebarOpen(false)}
                 style={styles.closeBtnIcon}
-                title="Close Sidebar"
+                title="Close Navigation"
               >
                 <X size={18} />
               </button>
@@ -359,10 +363,71 @@ export default function StudentDashboard() {
               />
             )}
           </div>
+
+          {/* ── DEDICATED MOBILE BOTTOM NAVIGATION BAR ── */}
+          {!isDesktop && (
+            <div style={styles.mobileBottomNav}>
+              <button
+                onClick={() => setActiveTab('chat')}
+                style={{
+                  ...styles.mobileNavItem,
+                  color: activeTab === 'chat' ? 'var(--accent-green)' : 'var(--text-muted)'
+                }}
+              >
+                <Sparkles size={18} />
+                <span style={styles.mobileNavLabel}>Chat</span>
+              </button>
+
+              <button
+                onClick={() => setActiveTab('forum')}
+                style={{
+                  ...styles.mobileNavItem,
+                  color: activeTab === 'forum' ? 'var(--accent-green)' : 'var(--text-muted)'
+                }}
+              >
+                <MessageSquare size={18} />
+                <span style={styles.mobileNavLabel}>Forum</span>
+              </button>
+
+              <button
+                onClick={() => setActiveTab('doc')}
+                style={{
+                  ...styles.mobileNavItem,
+                  color: activeTab === 'doc' ? 'var(--accent-green)' : 'var(--text-muted)'
+                }}
+              >
+                <FileText size={18} />
+                <span style={styles.mobileNavLabel}>Docs</span>
+              </button>
+
+              <button
+                onClick={() => setActiveTab('help')}
+                style={{
+                  ...styles.mobileNavItem,
+                  color: activeTab === 'help' ? 'var(--accent-green)' : 'var(--text-muted)'
+                }}
+              >
+                <HelpCircle size={18} />
+                <span style={styles.mobileNavLabel}>Help</span>
+              </button>
+
+              <button
+                onClick={() => setSidebarOpen(true)}
+                style={{
+                  ...styles.mobileNavItem,
+                  color: sidebarOpen ? 'var(--accent-green)' : 'var(--text-muted)'
+                }}
+              >
+                <Menu size={18} />
+                <span style={styles.mobileNavLabel}>Menu</span>
+              </button>
+            </div>
+          )}
         </main>
 
-        {/* ── RIGHT SIDEBAR: CHAT HISTORY (Inline on Desktop, Slide-over Drawer on Mobile/Tablet) ── */}
+        {/* ── RIGHT SIDEBAR: CHAT HISTORY (Inline on Desktop, Animated Drawer on Mobile/Tablet) ── */}
         <aside
+          className={!isDesktop && historyOpen ? 'mobile-drawer-right' : ''}
           style={{
             ...styles.rightSidebar,
             position: isDesktop ? 'relative' : 'fixed',
@@ -370,15 +435,15 @@ export default function StudentDashboard() {
             right: 0,
             bottom: 0,
             zIndex: isDesktop ? 1 : 50,
-            width: isDesktop ? (historyOpen ? '280px' : '0px') : '285px',
-            minWidth: isDesktop ? (historyOpen ? '280px' : '0px') : '285px',
+            width: isDesktop ? (historyOpen ? '280px' : '0px') : '290px',
+            minWidth: isDesktop ? (historyOpen ? '280px' : '0px') : '290px',
             padding: (isDesktop ? historyOpen : true) ? '1.25rem 1rem' : '0px',
             borderLeft: (isDesktop ? historyOpen : true) ? '1px solid var(--border-color)' : 'none',
             overflowY: 'auto',
             overflowX: 'hidden',
-            transform: !isDesktop ? (historyOpen ? 'translateX(0)' : 'translateX(100%)') : 'none',
-            transition: 'all 0.25s ease',
-            boxShadow: (!isDesktop && historyOpen) ? '-4px 0 24px rgba(0,0,0,0.5)' : 'none',
+            display: isDesktop ? (historyOpen ? 'flex' : 'none') : (historyOpen ? 'flex' : 'none'),
+            transition: isDesktop ? 'all 0.25s ease' : 'none',
+            boxShadow: (!isDesktop && historyOpen) ? '-6px 0 28px rgba(0,0,0,0.6)' : 'none',
           }}
         >
           {/* Header & "+ New Chat" Button */}
@@ -481,9 +546,11 @@ const styles = {
   logoWrap: {
     display: 'flex',
     alignItems: 'center',
+    justifyContent: 'space-between',
     gap: '0.75rem',
     marginBottom: '1.75rem',
     padding: '0 0.25rem',
+    width: '100%',
   },
   logoIcon: {
     width: '38px',
@@ -499,13 +566,13 @@ const styles = {
   brandTitle: {
     fontFamily: "'Verdana', 'Geneva', sans-serif",
     fontWeight: '800',
-    fontSize: '1.15rem',
+    fontSize: '1.1rem',
     color: 'var(--text-primary)',
     lineHeight: '1.2',
     whiteSpace: 'nowrap',
   },
   brandSubtitle: {
-    fontSize: '0.7rem',
+    fontSize: '0.68rem',
     color: 'var(--text-muted)',
     whiteSpace: 'nowrap',
   },
@@ -651,6 +718,33 @@ const styles = {
     overflow: 'hidden',
     textOverflow: 'ellipsis',
   },
+  mobileBottomNav: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-around',
+    background: 'var(--bg-panel)',
+    borderTop: '1px solid var(--border-color)',
+    padding: '0.35rem 0.5rem',
+    minHeight: '56px',
+    flexShrink: 0,
+    zIndex: 20,
+  },
+  mobileNavItem: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '2px',
+    background: 'none',
+    border: 'none',
+    padding: '0.35rem 0.5rem',
+    minWidth: '54px',
+    cursor: 'pointer',
+  },
+  mobileNavLabel: {
+    fontSize: '0.65rem',
+    fontWeight: '600',
+  },
   /* Right Sidebar */
   rightSidebar: {
     background: 'var(--bg-panel)',
@@ -674,6 +768,7 @@ const styles = {
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: '8px',
+    flexShrink: 0,
   },
   newChatBtn: {
     width: '100%',
