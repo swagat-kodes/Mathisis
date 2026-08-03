@@ -10,7 +10,8 @@ import PreferencesPanel from '../components/PreferencesPanel'
 import {
   Sparkles, LogOut, Shield, MessageSquare,
   Plus, Star, Settings, FileText, HelpCircle,
-  PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, MessageCircle
+  PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen,
+  MessageCircle, Menu, History, X
 } from 'lucide-react'
 
 const API = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000'
@@ -36,9 +37,24 @@ export default function StudentDashboard() {
 
   const [activeTab, setActiveTab] = useState('chat')
 
-  // Default both sidebars to OPEN as requested
-  const [sidebarOpen, setSidebarOpen] = useState(true)
-  const [historyOpen, setHistoryOpen] = useState(true)
+  // Screen width detection for mobile/tablet vs desktop
+  const [isDesktop, setIsDesktop] = useState(() => typeof window !== 'undefined' && window.innerWidth >= 1024)
+
+  const [sidebarOpen, setSidebarOpen] = useState(() => typeof window !== 'undefined' && window.innerWidth >= 1024)
+  const [historyOpen, setHistoryOpen] = useState(() => typeof window !== 'undefined' && window.innerWidth >= 1024)
+
+  useEffect(() => {
+    const handleResize = () => {
+      const desktop = window.innerWidth >= 1024
+      setIsDesktop(desktop)
+      if (desktop) {
+        setSidebarOpen(true)
+        setHistoryOpen(true)
+      }
+    }
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
 
   // Preferences State
   const [theme, setTheme] = useState(() => localStorage.getItem('mathisis_theme') || 'dark')
@@ -81,6 +97,7 @@ export default function StudentDashboard() {
     ])
     setActiveChatTitle(newTitle)
     setActiveTab('chat')
+    if (!isDesktop) setHistoryOpen(false)
   }
 
   // Handle selecting chat item
@@ -93,6 +110,7 @@ export default function StudentDashboard() {
     )
     setActiveChatTitle(title)
     setActiveTab('chat')
+    if (!isDesktop) setHistoryOpen(false)
   }
 
   // Toggle star
@@ -105,24 +123,55 @@ export default function StudentDashboard() {
     )
   }
 
+  const handleNavTabClick = (tab) => {
+    setActiveTab(tab)
+    if (!isDesktop) setSidebarOpen(false)
+  }
+
   return (
     <div style={styles.appWrapper}>
-      {/* Main 3-Column Container */}
+      {/* Dynamic Backdrop Overlay for Mobile/Tablet Off-canvas drawers */}
+      {!isDesktop && (sidebarOpen || historyOpen) && (
+        <div
+          onClick={() => {
+            setSidebarOpen(false)
+            setHistoryOpen(false)
+          }}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0, 0, 0, 0.65)',
+            backdropFilter: 'blur(4px)',
+            zIndex: 40,
+            transition: 'opacity 0.2s ease',
+          }}
+        />
+      )}
+
+      {/* Main 3-Column Layout */}
       <div style={styles.mainLayout}>
 
-        {/* ── LEFT SIDEBAR ─────────────────────────────────── */}
+        {/* ── LEFT SIDEBAR (Inline on Desktop, Slide-over Drawer on Mobile/Tablet) ── */}
         <aside
           style={{
             ...styles.leftSidebar,
-            width: sidebarOpen ? '275px' : '0px',
-            minWidth: sidebarOpen ? '275px' : '0px',
-            padding: sidebarOpen ? '1.25rem 1rem' : '0px',
-            borderRight: sidebarOpen ? '1px solid var(--border-color)' : 'none',
-            overflow: 'hidden',
-            transition: 'all 0.25s ease'
+            position: isDesktop ? 'relative' : 'fixed',
+            top: 0,
+            left: 0,
+            bottom: 0,
+            zIndex: isDesktop ? 1 : 50,
+            width: isDesktop ? (sidebarOpen ? '275px' : '0px') : '285px',
+            minWidth: isDesktop ? (sidebarOpen ? '275px' : '0px') : '285px',
+            padding: (isDesktop ? sidebarOpen : true) ? '1.25rem 1rem' : '0px',
+            borderRight: (isDesktop ? sidebarOpen : true) ? '1px solid var(--border-color)' : 'none',
+            overflowY: 'auto',
+            overflowX: 'hidden',
+            transform: !isDesktop ? (sidebarOpen ? 'translateX(0)' : 'translateX(-100%)') : 'none',
+            transition: 'all 0.25s ease',
+            boxShadow: (!isDesktop && sidebarOpen) ? '4px 0 24px rgba(0,0,0,0.5)' : 'none',
           }}
         >
-          {/* Logo & Title (Un-cramped Header) */}
+          {/* Header & Mobile Close Button */}
           <div style={styles.logoWrap}>
             <div style={styles.logoIcon}>
               <Sparkles size={20} color="#0B0C10" />
@@ -138,6 +187,15 @@ export default function StudentDashboard() {
               </div>
               <span style={styles.brandSubtitle}>Engineering Companion</span>
             </div>
+            {!isDesktop && (
+              <button
+                onClick={() => setSidebarOpen(false)}
+                style={styles.closeBtnIcon}
+                title="Close Sidebar"
+              >
+                <X size={18} />
+              </button>
+            )}
           </div>
 
           {/* Nav List */}
@@ -145,7 +203,7 @@ export default function StudentDashboard() {
             <span style={styles.sectionHeader}>TOOLS & NAVIGATION</span>
 
             <button
-              onClick={() => setActiveTab('chat')}
+              onClick={() => handleNavTabClick('chat')}
               style={{
                 ...styles.navItem,
                 ...(activeTab === 'chat' ? styles.navItemActive : {})
@@ -157,7 +215,7 @@ export default function StudentDashboard() {
             </button>
 
             <button
-              onClick={() => setActiveTab('forum')}
+              onClick={() => handleNavTabClick('forum')}
               style={{
                 ...styles.navItem,
                 ...(activeTab === 'forum' ? styles.navItemActive : {})
@@ -168,7 +226,7 @@ export default function StudentDashboard() {
             </button>
 
             <button
-              onClick={() => setActiveTab('doc')}
+              onClick={() => handleNavTabClick('doc')}
               style={{
                 ...styles.navItem,
                 ...(activeTab === 'doc' ? styles.navItemActive : {})
@@ -179,7 +237,7 @@ export default function StudentDashboard() {
             </button>
 
             <button
-              onClick={() => setActiveTab('help')}
+              onClick={() => handleNavTabClick('help')}
               style={{
                 ...styles.navItem,
                 ...(activeTab === 'help' ? styles.navItemActive : {})
@@ -190,7 +248,7 @@ export default function StudentDashboard() {
             </button>
 
             <button
-              onClick={() => setActiveTab('preferences')}
+              onClick={() => handleNavTabClick('preferences')}
               style={{
                 ...styles.navItem,
                 ...(activeTab === 'preferences' ? styles.navItemActive : {})
@@ -218,15 +276,23 @@ export default function StudentDashboard() {
 
         {/* ── CENTER CONTENT AREA ────────────────────────── */}
         <main style={styles.centerArea}>
-          {/* Top Header Bar with Menu Button */}
+          {/* Top Header Bar with Navigation & History Triggers */}
           <div style={styles.topControlBar}>
             <button
-              onClick={() => setSidebarOpen(!sidebarOpen)}
+              onClick={() => {
+                setSidebarOpen(!sidebarOpen)
+                if (!isDesktop) setHistoryOpen(false)
+              }}
               style={styles.toggleMenuBtn}
-              title={sidebarOpen ? 'Close Left Navigation' : 'Open Left Navigation'}
+              title={sidebarOpen ? 'Close Navigation' : 'Open Navigation'}
             >
-              {sidebarOpen ? <PanelLeftClose size={20} /> : <PanelLeftOpen size={20} />}
+              {isDesktop ? (
+                sidebarOpen ? <PanelLeftClose size={20} /> : <PanelLeftOpen size={20} />
+              ) : (
+                <Menu size={20} />
+              )}
             </button>
+
             <span style={styles.topControlTitle}>
               {activeTab === 'chat' && 'Mathisis AI Chat'}
               {activeTab === 'forum' && 'Ask Q&A Forum'}
@@ -234,9 +300,23 @@ export default function StudentDashboard() {
               {activeTab === 'help' && 'Help Center'}
               {activeTab === 'preferences' && 'Preferences & Settings'}
             </span>
+
+            {/* Mobile / Tablet History Button */}
+            {!isDesktop && (
+              <button
+                onClick={() => {
+                  setHistoryOpen(!historyOpen)
+                  setSidebarOpen(false)
+                }}
+                style={{ ...styles.toggleMenuBtn, marginLeft: 'auto' }}
+                title={historyOpen ? 'Close History' : 'Open History'}
+              >
+                <History size={20} />
+              </button>
+            )}
           </div>
 
-          <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+          <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
             {activeTab === 'chat' && (
               <ChatPanel
                 selectedYear={selectedYear}
@@ -281,16 +361,24 @@ export default function StudentDashboard() {
           </div>
         </main>
 
-        {/* ── RIGHT SIDEBAR: CHAT HISTORY ─────────────────── */}
+        {/* ── RIGHT SIDEBAR: CHAT HISTORY (Inline on Desktop, Slide-over Drawer on Mobile/Tablet) ── */}
         <aside
           style={{
             ...styles.rightSidebar,
-            width: historyOpen ? '280px' : '0px',
-            minWidth: historyOpen ? '280px' : '0px',
-            padding: historyOpen ? '1.25rem 1rem' : '0px',
-            borderLeft: historyOpen ? '1px solid var(--border-color)' : 'none',
-            overflow: 'hidden',
-            transition: 'all 0.25s ease'
+            position: isDesktop ? 'relative' : 'fixed',
+            top: 0,
+            right: 0,
+            bottom: 0,
+            zIndex: isDesktop ? 1 : 50,
+            width: isDesktop ? (historyOpen ? '280px' : '0px') : '285px',
+            minWidth: isDesktop ? (historyOpen ? '280px' : '0px') : '285px',
+            padding: (isDesktop ? historyOpen : true) ? '1.25rem 1rem' : '0px',
+            borderLeft: (isDesktop ? historyOpen : true) ? '1px solid var(--border-color)' : 'none',
+            overflowY: 'auto',
+            overflowX: 'hidden',
+            transform: !isDesktop ? (historyOpen ? 'translateX(0)' : 'translateX(100%)') : 'none',
+            transition: 'all 0.25s ease',
+            boxShadow: (!isDesktop && historyOpen) ? '-4px 0 24px rgba(0,0,0,0.5)' : 'none',
           }}
         >
           {/* Header & "+ New Chat" Button */}
@@ -304,7 +392,7 @@ export default function StudentDashboard() {
                 style={styles.closeBtnIcon}
                 title="Close Chat History"
               >
-                <PanelRightClose size={16} />
+                {isDesktop ? <PanelRightClose size={16} /> : <X size={18} />}
               </button>
             </div>
             <button
@@ -364,8 +452,8 @@ export default function StudentDashboard() {
 
 const styles = {
   appWrapper: {
-    height: '100vh',
-    maxHeight: '100vh',
+    height: '100dvh',
+    maxHeight: '100dvh',
     width: '100vw',
     maxWidth: '100vw',
     background: 'var(--bg-main)',
@@ -380,6 +468,7 @@ const styles = {
     width: '100%',
     height: '100%',
     overflow: 'hidden',
+    position: 'relative',
   },
   /* Left Sidebar */
   leftSidebar: {
@@ -437,7 +526,8 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     gap: '0.75rem',
-    padding: '0.65rem 0.875rem',
+    padding: '0.75rem 0.875rem',
+    minHeight: '44px',
     borderRadius: '12px',
     background: 'transparent',
     border: 'none',
@@ -472,6 +562,7 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     gap: '0.75rem',
+    minHeight: '44px',
   },
   userAvatar: {
     width: '34px',
@@ -509,7 +600,9 @@ const styles = {
     background: 'none',
     border: 'none',
     cursor: 'pointer',
-    padding: '0.35rem',
+    padding: '0.45rem',
+    minHeight: '44px',
+    minWidth: '44px',
     borderRadius: '8px',
     display: 'flex',
     alignItems: 'center',
@@ -524,20 +617,25 @@ const styles = {
     display: 'flex',
     flexDirection: 'column',
     background: 'var(--bg-panel)',
+    overflow: 'hidden',
   },
   topControlBar: {
     display: 'flex',
     alignItems: 'center',
     gap: '0.75rem',
-    padding: '0.5rem 1.25rem',
+    padding: '0.5rem 1rem',
+    minHeight: '52px',
     background: 'var(--bg-panel)',
     borderBottom: '1px solid var(--border-color)',
+    flexShrink: 0,
   },
   toggleMenuBtn: {
     background: 'var(--bg-card)',
     border: '1px solid var(--border-color)',
     borderRadius: '10px',
-    padding: '0.45rem',
+    padding: '0.5rem',
+    minWidth: '44px',
+    minHeight: '44px',
     color: 'var(--text-primary)',
     cursor: 'pointer',
     display: 'flex',
@@ -549,6 +647,9 @@ const styles = {
     fontWeight: '700',
     fontSize: '0.92rem',
     color: 'var(--text-primary)',
+    whiteSpace: 'nowrap',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
   },
   /* Right Sidebar */
   rightSidebar: {
@@ -566,11 +667,18 @@ const styles = {
     border: 'none',
     color: 'var(--text-muted)',
     cursor: 'pointer',
-    padding: '2px',
+    padding: '0.35rem',
+    minWidth: '36px',
+    minHeight: '36px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: '8px',
   },
   newChatBtn: {
     width: '100%',
     padding: '0.75rem',
+    minHeight: '44px',
     borderRadius: '14px',
     fontSize: '0.9rem',
     fontWeight: '700',
@@ -595,6 +703,7 @@ const styles = {
     alignItems: 'center',
     gap: '0.75rem',
     padding: '0.65rem 0.75rem',
+    minHeight: '44px',
     borderRadius: '12px',
     background: 'transparent',
     cursor: 'pointer',
@@ -623,7 +732,9 @@ const styles = {
     background: 'none',
     border: 'none',
     cursor: 'pointer',
-    padding: '0.2rem',
+    padding: '0.35rem',
+    minWidth: '32px',
+    minHeight: '32px',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',

@@ -114,19 +114,19 @@ export default function LoginPage() {
 }
 
 const styles = {
-  page: { minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', overflow: 'hidden', background: 'var(--bg-main)' },
+  page: { minHeight: '100dvh', height: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', overflow: 'hidden', background: 'var(--bg-main)', padding: '1rem' },
   glowOrb: { position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: '600px', height: '600px', borderRadius: '50%', background: 'radial-gradient(circle, var(--shadow-glow), transparent 70%)', pointerEvents: 'none' },
-  card: { width: '100%', maxWidth: '420px', padding: '2.5rem', display: 'flex', flexDirection: 'column', gap: '1rem', position: 'relative', zIndex: 1 },
+  card: { width: '100%', maxWidth: '420px', padding: '1.75rem 1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem', position: 'relative', zIndex: 1, maxHeight: '90dvh', overflowY: 'auto' },
   logoWrap: { display: 'flex', alignItems: 'center', gap: '0.75rem' },
-  logoIcon: { width: '44px', height: '44px', borderRadius: '12px', background: 'var(--accent-green)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 0 16px var(--shadow-glow)' },
-  logoText: { fontSize: '1.75rem', fontWeight: '800', color: 'var(--text-primary)' },
-  tagline: { color: 'var(--text-muted)', fontSize: '0.85rem', marginTop: '-0.5rem' },
-  heading: { fontSize: '1.25rem', fontWeight: '700', color: 'var(--text-primary)', marginTop: '0.5rem' },
+  logoIcon: { width: '44px', height: '44px', borderRadius: '12px', background: 'var(--accent-green)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 0 16px var(--shadow-glow)', flexShrink: 0 },
+  logoText: { fontSize: '1.5rem', fontWeight: '800', color: 'var(--text-primary)' },
+  tagline: { color: 'var(--text-muted)', fontSize: '0.82rem', marginTop: '-0.5rem' },
+  heading: { fontSize: '1.15rem', fontWeight: '700', color: 'var(--text-primary)', marginTop: '0.25rem' },
   form: { display: 'flex', flexDirection: 'column', gap: '1rem' },
   fieldWrap: { display: 'flex', flexDirection: 'column', gap: '0.375rem' },
-  label: { fontSize: '0.8rem', fontWeight: '600', color: 'var(--text-muted)' },
+  label: { fontSize: '0.78rem', fontWeight: '600', color: 'var(--text-muted)' },
   inputWrap: { position: 'relative' },
   inputIcon: { position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' },
-  switchText: { textAlign: 'center', fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: '0.5rem' },
+  switchText: { textAlign: 'center', fontSize: '0.82rem', color: 'var(--text-muted)', marginTop: '0.5rem' },
   link: { color: 'var(--accent-green)', textDecoration: 'none', fontWeight: '700' },
 }

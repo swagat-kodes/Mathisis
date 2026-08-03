@@ -9,7 +9,8 @@ import PreferencesPanel from '../components/PreferencesPanel'
 import {
   Sparkles, UploadCloud, BookOpen, Plus, Shield, LogOut,
   MessageSquare, HelpCircle, Settings,
-  AlertCircle, FileText, PanelLeftClose, PanelLeftOpen
+  AlertCircle, FileText, PanelLeftClose, PanelLeftOpen,
+  Menu, X
 } from 'lucide-react'
 
 const API = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000'
@@ -24,7 +25,22 @@ export default function AdminDashboard() {
   const navigate = useNavigate()
 
   const [activeTab, setActiveTab] = useState('upload') // 'upload' | 'forum' | 'help' | 'preferences'
-  const [sidebarOpen, setSidebarOpen] = useState(true)
+
+  // Screen width detection for mobile/tablet vs desktop
+  const [isDesktop, setIsDesktop] = useState(() => typeof window !== 'undefined' && window.innerWidth >= 1024)
+  const [sidebarOpen, setSidebarOpen] = useState(() => typeof window !== 'undefined' && window.innerWidth >= 1024)
+
+  useEffect(() => {
+    const handleResize = () => {
+      const desktop = window.innerWidth >= 1024
+      setIsDesktop(desktop)
+      if (desktop) {
+        setSidebarOpen(true)
+      }
+    }
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
 
   // Preferences State
   const [theme, setTheme] = useState(() => localStorage.getItem('mathisis_theme') || 'dark')
@@ -145,23 +161,51 @@ export default function AdminDashboard() {
     navigate('/login', { replace: true })
   }
 
+  const handleNavTabClick = tab => {
+    setActiveTab(tab)
+    if (!isDesktop) setSidebarOpen(false)
+  }
+
   return (
     <div style={styles.appWrapper}>
+      {/* Dynamic Backdrop Overlay for Mobile/Tablet Off-canvas drawer */}
+      {!isDesktop && sidebarOpen && (
+        <div
+          onClick={() => setSidebarOpen(false)}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0, 0, 0, 0.65)',
+            backdropFilter: 'blur(4px)',
+            zIndex: 40,
+            transition: 'opacity 0.2s ease',
+          }}
+        />
+      )}
+
       <div style={styles.mainLayout}>
 
-        {/* ── LEFT SIDEBAR ─────────────────────────────────── */}
+        {/* ── LEFT SIDEBAR (Inline on Desktop, Drawer on Mobile/Tablet) ── */}
         <aside
           style={{
             ...styles.leftSidebar,
-            width: sidebarOpen ? '275px' : '0px',
-            minWidth: sidebarOpen ? '275px' : '0px',
-            padding: sidebarOpen ? '1.25rem 1rem' : '0px',
-            borderRight: sidebarOpen ? '1px solid var(--border-color)' : 'none',
-            overflow: 'hidden',
-            transition: 'all 0.25s ease'
+            position: isDesktop ? 'relative' : 'fixed',
+            top: 0,
+            left: 0,
+            bottom: 0,
+            zIndex: isDesktop ? 1 : 50,
+            width: isDesktop ? (sidebarOpen ? '275px' : '0px') : '285px',
+            minWidth: isDesktop ? (sidebarOpen ? '275px' : '0px') : '285px',
+            padding: (isDesktop ? sidebarOpen : true) ? '1.25rem 1rem' : '0px',
+            borderRight: (isDesktop ? sidebarOpen : true) ? '1px solid var(--border-color)' : 'none',
+            overflowY: 'auto',
+            overflowX: 'hidden',
+            transform: !isDesktop ? (sidebarOpen ? 'translateX(0)' : 'translateX(-100%)') : 'none',
+            transition: 'all 0.25s ease',
+            boxShadow: (!isDesktop && sidebarOpen) ? '4px 0 24px rgba(0,0,0,0.5)' : 'none',
           }}
         >
-          {/* Logo & Title (Un-cramped Admin Header) */}
+          {/* Logo & Title */}
           <div style={styles.logoWrap}>
             <div style={styles.logoIcon}>
               <Sparkles size={20} color="#0B0C10" />
@@ -175,6 +219,15 @@ export default function AdminDashboard() {
               </div>
               <span style={styles.brandSubtitle}>Admin Control Panel</span>
             </div>
+            {!isDesktop && (
+              <button
+                onClick={() => setSidebarOpen(false)}
+                style={styles.closeBtnIcon}
+                title="Close Navigation"
+              >
+                <X size={18} />
+              </button>
+            )}
           </div>
 
           {/* Nav List */}
@@ -182,7 +235,7 @@ export default function AdminDashboard() {
             <span style={styles.sectionHeader}>ADMINISTRATION</span>
 
             <button
-              onClick={() => setActiveTab('upload')}
+              onClick={() => handleNavTabClick('upload')}
               style={{
                 ...styles.navItem,
                 ...(activeTab === 'upload' ? styles.navItemActive : {})
@@ -194,7 +247,7 @@ export default function AdminDashboard() {
             </button>
 
             <button
-              onClick={() => setActiveTab('forum')}
+              onClick={() => handleNavTabClick('forum')}
               style={{
                 ...styles.navItem,
                 ...(activeTab === 'forum' ? styles.navItemActive : {})
@@ -205,7 +258,7 @@ export default function AdminDashboard() {
             </button>
 
             <button
-              onClick={() => setActiveTab('help')}
+              onClick={() => handleNavTabClick('help')}
               style={{
                 ...styles.navItem,
                 ...(activeTab === 'help' ? styles.navItemActive : {})
@@ -216,7 +269,7 @@ export default function AdminDashboard() {
             </button>
 
             <button
-              onClick={() => setActiveTab('preferences')}
+              onClick={() => handleNavTabClick('preferences')}
               style={{
                 ...styles.navItem,
                 ...(activeTab === 'preferences' ? styles.navItemActive : {})
@@ -249,9 +302,13 @@ export default function AdminDashboard() {
             <button
               onClick={() => setSidebarOpen(!sidebarOpen)}
               style={styles.toggleMenuBtn}
-              title={sidebarOpen ? 'Close Left Navigation' : 'Open Left Navigation'}
+              title={sidebarOpen ? 'Close Navigation' : 'Open Navigation'}
             >
-              {sidebarOpen ? <PanelLeftClose size={20} /> : <PanelLeftOpen size={20} />}
+              {isDesktop ? (
+                sidebarOpen ? <PanelLeftClose size={20} /> : <PanelLeftOpen size={20} />
+              ) : (
+                <Menu size={20} />
+              )}
             </button>
             <span style={styles.topControlTitle}>
               {activeTab === 'upload' && 'Course & Textbook Upload Center'}
@@ -278,7 +335,7 @@ export default function AdminDashboard() {
                     {/* Step A: Select Year & Semester */}
                     <div style={styles.fieldGroup}>
                       <label style={styles.label}>Select Academic Term</label>
-                      <div style={{ display: 'flex', gap: '0.75rem' }}>
+                      <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
                         <select
                           className="select-field"
                           value={selectedYear}
@@ -288,6 +345,7 @@ export default function AdminDashboard() {
                             setSubjects([])
                             setSelectedSubjectId('')
                           }}
+                          style={{ flex: 1, minWidth: '120px' }}
                         >
                           <option value="">Year...</option>
                           {years.map(y => <option key={y} value={y}>Year {y}</option>)}
@@ -301,6 +359,7 @@ export default function AdminDashboard() {
                             setSelectedSubjectId('')
                           }}
                           disabled={!selectedYear}
+                          style={{ flex: 1, minWidth: '120px' }}
                         >
                           <option value="">Semester...</option>
                           {availableSemesters.map(s => <option key={s} value={s}>Sem {s}</option>)}
@@ -327,19 +386,20 @@ export default function AdminDashboard() {
                     {selectedYear && selectedSemester && (
                       <form onSubmit={handleCreateSubject} style={styles.createSubjectForm}>
                         <label style={styles.label}>+ Add New Subject to Term</label>
-                        <div style={{ display: 'flex', gap: '0.5rem' }}>
+                        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
                           <input
                             className="input-field"
                             placeholder="e.g. Applied Physics"
                             value={newSubjectName}
                             onChange={e => setNewSubjectName(e.target.value)}
                             required
+                            style={{ flex: 1, minWidth: '160px' }}
                           />
                           <button
                             className="btn-primary"
                             type="submit"
                             disabled={creatingSubject || !newSubjectName.trim()}
-                            style={{ flexShrink: 0 }}
+                            style={{ flexShrink: 0, minHeight: '44px' }}
                           >
                             <Plus size={16} /> Add
                           </button>
@@ -404,7 +464,7 @@ export default function AdminDashboard() {
                           className="btn-primary"
                           type="submit"
                           disabled={!pdfFile || uploading}
-                          style={{ width: '100%', height: '44px' }}
+                          style={{ width: '100%', minHeight: '44px' }}
                         >
                           {uploading ? 'Processing & Indexing PDF...' : 'Upload & Process Textbook'}
                         </button>
@@ -440,8 +500,8 @@ export default function AdminDashboard() {
 
 const styles = {
   appWrapper: {
-    height: '100vh',
-    maxHeight: '100vh',
+    height: '100dvh',
+    maxHeight: '100dvh',
     width: '100vw',
     maxWidth: '100vw',
     background: 'var(--bg-main)',
@@ -456,6 +516,7 @@ const styles = {
     width: '100%',
     height: '100%',
     overflow: 'hidden',
+    position: 'relative',
   },
   /* Left Sidebar */
   leftSidebar: {
@@ -496,6 +557,19 @@ const styles = {
     color: 'var(--text-muted)',
     whiteSpace: 'nowrap',
   },
+  closeBtnIcon: {
+    background: 'none',
+    border: 'none',
+    color: 'var(--text-muted)',
+    cursor: 'pointer',
+    padding: '0.35rem',
+    minWidth: '36px',
+    minHeight: '36px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: '8px',
+  },
   navSection: {
     display: 'flex',
     flexDirection: 'column',
@@ -513,7 +587,8 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     gap: '0.75rem',
-    padding: '0.65rem 0.875rem',
+    padding: '0.75rem 0.875rem',
+    minHeight: '44px',
     borderRadius: '12px',
     background: 'transparent',
     border: 'none',
@@ -542,6 +617,7 @@ const styles = {
   userCard: {
     marginTop: 'auto',
     padding: '0.75rem 0.875rem',
+    minHeight: '44px',
     borderRadius: '14px',
     background: 'var(--bg-card)',
     border: '1px solid var(--border-color)',
@@ -583,7 +659,9 @@ const styles = {
     background: 'none',
     border: 'none',
     cursor: 'pointer',
-    padding: '0.35rem',
+    padding: '0.45rem',
+    minWidth: '44px',
+    minHeight: '44px',
     borderRadius: '8px',
     display: 'flex',
     alignItems: 'center',
@@ -598,20 +676,25 @@ const styles = {
     display: 'flex',
     flexDirection: 'column',
     background: 'var(--bg-panel)',
+    overflow: 'hidden',
   },
   topControlBar: {
     display: 'flex',
     alignItems: 'center',
     gap: '0.75rem',
-    padding: '0.625rem 1.25rem',
+    padding: '0.5rem 1rem',
+    minHeight: '52px',
     background: 'var(--bg-panel)',
     borderBottom: '1px solid var(--border-color)',
+    flexShrink: 0,
   },
   toggleMenuBtn: {
     background: 'var(--bg-card)',
     border: '1px solid var(--border-color)',
     borderRadius: '10px',
-    padding: '0.45rem',
+    padding: '0.5rem',
+    minWidth: '44px',
+    minHeight: '44px',
     color: 'var(--text-primary)',
     cursor: 'pointer',
     display: 'flex',
@@ -623,20 +706,23 @@ const styles = {
     fontWeight: '700',
     fontSize: '0.9rem',
     color: 'var(--text-primary)',
+    whiteSpace: 'nowrap',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
   },
   uploadTabContent: {
-    padding: '1.5rem',
+    padding: '1rem',
     maxWidth: '1000px',
     width: '100%',
     margin: '0 auto',
   },
   grid2Col: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))',
-    gap: '1.25rem',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+    gap: '1rem',
   },
   card: {
-    padding: '1.5rem',
+    padding: '1.25rem',
     borderRadius: '16px',
     background: 'var(--bg-card)',
     border: '1px solid var(--border-color)',
@@ -676,14 +762,14 @@ const styles = {
     flexDirection: 'column',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: '3rem 1rem',
+    padding: '2.5rem 1rem',
     border: '1px dashed var(--border-color)',
     borderRadius: '12px',
   },
   dropzone: {
     border: '2px dashed var(--border-color)',
     borderRadius: '14px',
-    padding: '2rem 1rem',
+    padding: '1.75rem 1rem',
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
