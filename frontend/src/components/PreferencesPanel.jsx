@@ -43,6 +43,7 @@ export default function PreferencesPanel({
 
           <div style={styles.cardGrid}>
             <div
+              className="option-card-hover"
               onClick={() => handleThemeChange('dark')}
               style={{
                 ...styles.optionCard,
@@ -60,6 +61,7 @@ export default function PreferencesPanel({
             </div>
 
             <div
+              className="option-card-hover"
               onClick={() => handleThemeChange('light')}
               style={{
                 ...styles.optionCard,
@@ -89,6 +91,7 @@ export default function PreferencesPanel({
 
           <div style={styles.cardGrid}>
             <div
+              className="option-card-hover"
               onClick={() => handleStyleChange('concise')}
               style={{
                 ...styles.optionCard,
@@ -106,6 +109,7 @@ export default function PreferencesPanel({
             </div>
 
             <div
+              className="option-card-hover"
               onClick={() => handleStyleChange('detailed')}
               style={{
                 ...styles.optionCard,

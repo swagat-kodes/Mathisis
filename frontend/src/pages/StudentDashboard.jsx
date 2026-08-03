@@ -208,8 +208,8 @@ export default function StudentDashboard() {
 
             <button
               onClick={() => handleNavTabClick('chat')}
+              className="nav-item-btn"
               style={{
-                ...styles.navItem,
                 ...(activeTab === 'chat' ? styles.navItemActive : {})
               }}
             >
@@ -220,8 +220,8 @@ export default function StudentDashboard() {
 
             <button
               onClick={() => handleNavTabClick('forum')}
+              className="nav-item-btn"
               style={{
-                ...styles.navItem,
                 ...(activeTab === 'forum' ? styles.navItemActive : {})
               }}
             >
@@ -231,8 +231,8 @@ export default function StudentDashboard() {
 
             <button
               onClick={() => handleNavTabClick('doc')}
+              className="nav-item-btn"
               style={{
-                ...styles.navItem,
                 ...(activeTab === 'doc' ? styles.navItemActive : {})
               }}
             >
@@ -242,8 +242,8 @@ export default function StudentDashboard() {
 
             <button
               onClick={() => handleNavTabClick('help')}
+              className="nav-item-btn"
               style={{
-                ...styles.navItem,
                 ...(activeTab === 'help' ? styles.navItemActive : {})
               }}
             >
@@ -253,8 +253,8 @@ export default function StudentDashboard() {
 
             <button
               onClick={() => handleNavTabClick('preferences')}
+              className="nav-item-btn"
               style={{
-                ...styles.navItem,
                 ...(activeTab === 'preferences' ? styles.navItemActive : {})
               }}
             >
@@ -264,7 +264,7 @@ export default function StudentDashboard() {
           </div>
 
           {/* User Profile Card at Bottom */}
-          <div style={styles.userCard}>
+          <div className="user-card-hover" style={styles.userCard}>
             <div style={styles.userAvatar}>
               {user?.email?.charAt(0).toUpperCase() || 'U'}
             </div>
@@ -272,7 +272,7 @@ export default function StudentDashboard() {
               <span style={styles.userName}>{user?.email?.split('@')[0]}</span>
               <span style={styles.userRole}>{isAdmin ? 'Administrator' : 'Student Account'}</span>
             </div>
-            <button onClick={handleSignOut} title="Sign Out" style={styles.logoutBtn}>
+            <button onClick={handleSignOut} title="Sign Out" className="icon-btn-hover" style={styles.logoutBtn}>
               <LogOut size={16} color="var(--text-muted)" />
             </button>
           </div>
@@ -287,6 +287,7 @@ export default function StudentDashboard() {
                 setSidebarOpen(!sidebarOpen)
                 if (!isDesktop) setHistoryOpen(false)
               }}
+              className="icon-btn-hover"
               style={styles.toggleMenuBtn}
               title={sidebarOpen ? 'Close Navigation' : 'Open Navigation'}
             >
@@ -312,6 +313,7 @@ export default function StudentDashboard() {
                   setHistoryOpen(!historyOpen)
                   setSidebarOpen(false)
                 }}
+                className="icon-btn-hover"
                 style={{ ...styles.toggleMenuBtn, marginLeft: 'auto' }}
                 title={historyOpen ? 'Close History' : 'Open History'}
               >
@@ -369,8 +371,8 @@ export default function StudentDashboard() {
             <div style={styles.mobileBottomNav}>
               <button
                 onClick={() => setActiveTab('chat')}
+                className="mobile-nav-btn"
                 style={{
-                  ...styles.mobileNavItem,
                   color: activeTab === 'chat' ? 'var(--accent-green)' : 'var(--text-muted)'
                 }}
               >
@@ -380,8 +382,8 @@ export default function StudentDashboard() {
 
               <button
                 onClick={() => setActiveTab('forum')}
+                className="mobile-nav-btn"
                 style={{
-                  ...styles.mobileNavItem,
                   color: activeTab === 'forum' ? 'var(--accent-green)' : 'var(--text-muted)'
                 }}
               >
@@ -391,8 +393,8 @@ export default function StudentDashboard() {
 
               <button
                 onClick={() => setActiveTab('doc')}
+                className="mobile-nav-btn"
                 style={{
-                  ...styles.mobileNavItem,
                   color: activeTab === 'doc' ? 'var(--accent-green)' : 'var(--text-muted)'
                 }}
               >
@@ -402,8 +404,8 @@ export default function StudentDashboard() {
 
               <button
                 onClick={() => setActiveTab('help')}
+                className="mobile-nav-btn"
                 style={{
-                  ...styles.mobileNavItem,
                   color: activeTab === 'help' ? 'var(--accent-green)' : 'var(--text-muted)'
                 }}
               >
@@ -413,8 +415,8 @@ export default function StudentDashboard() {
 
               <button
                 onClick={() => setSidebarOpen(true)}
+                className="mobile-nav-btn"
                 style={{
-                  ...styles.mobileNavItem,
                   color: sidebarOpen ? 'var(--accent-green)' : 'var(--text-muted)'
                 }}
               >
@@ -454,6 +456,7 @@ export default function StudentDashboard() {
               </span>
               <button
                 onClick={() => setHistoryOpen(false)}
+                className="icon-btn-hover"
                 style={styles.closeBtnIcon}
                 title="Close Chat History"
               >
@@ -484,8 +487,8 @@ export default function StudentDashboard() {
                 <div
                   key={item.id}
                   onClick={() => handleSelectHistoryItem(item.id, item.title)}
+                  className="history-item-btn"
                   style={{
-                    ...styles.historyItem,
                     ...(item.active ? styles.historyItemActive : {})
                   }}
                 >
@@ -496,6 +499,7 @@ export default function StudentDashboard() {
                   </div>
                   <button
                     onClick={e => handleToggleStar(item.id, e)}
+                    className="star-btn-hover"
                     style={styles.starBtn}
                     title="Favorite chat"
                   >

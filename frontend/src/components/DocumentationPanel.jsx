@@ -141,7 +141,7 @@ export default function DocumentationPanel({
         ) : (
           <div style={styles.grid}>
             {filteredMaterials.map(mat => (
-              <div key={mat.id} className="fade-in-up" style={styles.card}>
+              <div key={mat.id} className="card-hover fade-in-up" style={styles.card}>
                 <div style={styles.pdfBadge}>
                   <FileText size={24} color="var(--accent-green)" />
                 </div>

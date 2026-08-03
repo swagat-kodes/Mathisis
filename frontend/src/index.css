@@ -60,29 +60,40 @@ button, input, select, textarea {
 
 /* Custom Scrollbars */
 ::-webkit-scrollbar {
-  width: 5px;
-  height: 5px;
+  width: 6px;
+  height: 6px;
 }
 ::-webkit-scrollbar-track {
   background: var(--bg-panel);
 }
 ::-webkit-scrollbar-thumb {
   background: var(--bg-hover);
-  border-radius: 4px;
+  border-radius: 6px;
+  transition: background 0.2s ease;
 }
 ::-webkit-scrollbar-thumb:hover {
   background: var(--accent-green);
 }
 
-/* ── Glass & Cards ──────────────────────────────────────── */
-.glass {
+/* ── Glass & Cards with Smooth Hover Animations ──────────────── */
+.glass, .card {
   background: var(--bg-panel);
   border: 1px solid var(--border-color);
   border-radius: 16px;
-  transition: background 0.25s, border-color 0.25s;
+  transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1), 
+              border-color 0.28s cubic-bezier(0.16, 1, 0.3, 1), 
+              box-shadow 0.28s cubic-bezier(0.16, 1, 0.3, 1),
+              background 0.28s ease;
+  will-change: transform;
 }
 
-/* ── Buttons ────────────────────────────────────────────── */
+.glass:hover, .card:hover {
+  transform: translateY(-3px);
+  border-color: rgba(43, 242, 160, 0.35);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35), 0 0 20px var(--shadow-glow);
+}
+
+/* ── Buttons with Micro-Animations & Glow ────────────────── */
 .btn-primary {
   display: inline-flex;
   align-items: center;
@@ -92,18 +103,31 @@ button, input, select, textarea {
   font-weight: 700;
   font-size: 0.85rem;
   font-family: 'Verdana', 'Geneva', sans-serif;
-  border-radius: 12px;
+  border-radius: 14px;
   border: none;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1),
+              filter 0.22s ease,
+              box-shadow 0.22s cubic-bezier(0.16, 1, 0.3, 1),
+              background-color 0.22s ease;
   background: var(--accent-green);
   color: #0B0C10;
-  box-shadow: 0 4px 14px var(--shadow-glow);
+  box-shadow: 0 4px 16px var(--shadow-glow);
+  position: relative;
+  overflow: hidden;
 }
+
 .btn-primary:hover:not(:disabled) {
-  transform: translateY(-1px);
+  transform: translateY(-2px) scale(1.015);
   filter: brightness(1.08);
+  box-shadow: 0 8px 24px var(--shadow-glow);
 }
+
+.btn-primary:active:not(:disabled) {
+  transform: translateY(0px) scale(0.98);
+  box-shadow: 0 2px 8px var(--shadow-glow);
+}
+
 .btn-primary:disabled {
   opacity: 0.45;
   cursor: not-allowed;
@@ -120,105 +144,154 @@ button, input, select, textarea {
   font-weight: 600;
   font-size: 0.85rem;
   font-family: 'Verdana', 'Geneva', sans-serif;
-  border-radius: 12px;
+  border-radius: 14px;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1),
+              background 0.22s ease,
+              border-color 0.22s ease,
+              box-shadow 0.22s ease,
+              color 0.22s ease;
   background: var(--bg-card);
   color: var(--text-primary);
-  border: 1px solid var(--border-color);
-}
-.btn-secondary:hover {
-  background: var(--bg-hover);
+  border: 1.5px solid var(--border-color);
 }
 
-/* ── Custom Styled Dropdown Select Boxes ────────────────── */
-.select-field {
+.btn-secondary:hover:not(:disabled) {
+  transform: translateY(-2px);
+  background: var(--bg-hover);
+  border-color: rgba(43, 242, 160, 0.4);
+  color: var(--text-primary);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
+}
+
+.btn-secondary:active:not(:disabled) {
+  transform: translateY(0px) scale(0.98);
+}
+
+/* ── Custom Stylized Rounded Dropdown Select Boxes ───────────── */
+select, .select-field {
   width: 100%;
-  padding: 0.5rem 2.2rem 0.5rem 0.875rem;
+  padding: 0.55rem 2.4rem 0.55rem 0.95rem;
   background-color: var(--bg-card);
   border: 1.5px solid var(--border-color);
-  border-radius: 12px;
+  border-radius: 16px !important; /* Sleek, rounded dropdown design */
   color: var(--text-primary);
   font-size: 0.82rem;
-  font-weight: 500;
+  font-weight: 600;
   font-family: 'Verdana', 'Geneva', sans-serif;
   cursor: pointer;
   outline: none;
   appearance: none;
   -webkit-appearance: none;
   -moz-appearance: none;
-  transition: border-color 0.2s, background-color 0.2s, box-shadow 0.2s;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%238C90A0' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1),
+              border-color 0.22s ease,
+              background-color 0.22s ease,
+              box-shadow 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%232BF2A0' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
   background-repeat: no-repeat;
-  background-position: right 0.75rem center;
-}
-.select-field:hover:not(:disabled) {
-  border-color: var(--accent-green);
-  background-color: var(--bg-hover);
-}
-.select-field:focus {
-  border-color: var(--accent-green);
-  box-shadow: 0 0 0 3px rgba(43, 242, 160, 0.18);
-}
-.select-field:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
-}
-.select-field option {
-  background-color: var(--bg-panel);
-  color: var(--text-primary);
-  padding: 8px;
+  background-position: right 0.85rem center;
 }
 
-/* ── Inputs ─────────────────────────────────────────────── */
-.input-field {
+select:hover:not(:disabled), .select-field:hover:not(:disabled) {
+  transform: translateY(-2px);
+  border-color: var(--accent-green);
+  background-color: var(--bg-hover);
+  box-shadow: 0 6px 20px var(--shadow-glow);
+}
+
+select:focus, .select-field:focus {
+  transform: translateY(-1px);
+  border-color: var(--accent-green);
+  box-shadow: 0 0 0 3px rgba(43, 242, 160, 0.22), 0 6px 20px var(--shadow-glow);
+}
+
+select:disabled, .select-field:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+select option, .select-field option {
+  background-color: var(--bg-panel);
+  color: var(--text-primary);
+  padding: 10px 14px;
+  font-weight: 500;
+  border-radius: 8px;
+}
+
+/* ── Inputs & Textareas with Hover Glow ───────────────────── */
+.input-field, textarea {
   width: 100%;
-  padding: 0.625rem 0.875rem;
+  padding: 0.65rem 0.95rem;
   background: var(--bg-card);
   border: 1.5px solid var(--border-color);
-  border-radius: 12px;
+  border-radius: 14px;
   color: var(--text-primary);
   font-size: 0.85rem;
   font-family: 'Verdana', 'Geneva', sans-serif;
-  transition: border-color 0.2s, box-shadow 0.2s;
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+              border-color 0.2s ease,
+              background-color 0.2s ease,
+              box-shadow 0.2s ease;
   outline: none;
 }
-.input-field::placeholder {
+
+.input-field::placeholder, textarea::placeholder {
   color: var(--text-muted);
 }
-.input-field:focus {
-  border-color: var(--accent-green);
-  box-shadow: 0 0 0 3px rgba(43, 242, 160, 0.18);
+
+.input-field:hover:not(:focus):not(:disabled), textarea:hover:not(:focus):not(:disabled) {
+  border-color: rgba(43, 242, 160, 0.45);
+  background-color: var(--bg-hover);
 }
 
-/* ── Badges ─────────────────────────────────────────────── */
+.input-field:focus, textarea:focus {
+  border-color: var(--accent-green);
+  box-shadow: 0 0 0 3px rgba(43, 242, 160, 0.22), 0 4px 14px rgba(0, 0, 0, 0.15);
+  transform: translateY(-1px);
+}
+
+/* ── Badges with Hover Micro-Scale ──────────────────────── */
 .badge {
   display: inline-flex;
   align-items: center;
   gap: 0.3rem;
-  padding: 0.25rem 0.625rem;
+  padding: 0.25rem 0.65rem;
   border-radius: 20px;
   font-size: 0.72rem;
   font-weight: 600;
   font-family: 'Verdana', 'Geneva', sans-serif;
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease;
 }
+
+.badge:hover {
+  transform: translateY(-1px) scale(1.05);
+}
+
 .badge-green {
   background: rgba(43, 242, 160, 0.14);
   color: var(--accent-green);
   border: 1px solid rgba(43, 242, 160, 0.35);
 }
+.badge-green:hover {
+  box-shadow: 0 0 10px var(--shadow-glow);
+}
+
 .badge-gold {
   background: rgba(245, 158, 11, 0.15);
   color: var(--accent-gold);
   border: 1px solid rgba(245, 158, 11, 0.35);
 }
+
 .badge-gray {
   background: var(--bg-card);
   color: var(--text-muted);
   border: 1px solid var(--border-color);
 }
 
-/* ── Mobile Menu Animations ─────────────────────────────── */
+/* ── Animations & Transitions for PC & Mobile ────────────── */
 @keyframes slideInLeft {
   0% { transform: translateX(-100%); opacity: 0; }
   100% { transform: translateX(0); opacity: 1; }
@@ -245,4 +318,223 @@ button, input, select, textarea {
 .mobile-overlay {
   animation: fadeInOverlay 0.22s ease forwards;
 }
+
+/* Typing Dots Animation */
+.typing-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: var(--accent-green);
+  display: inline-block;
+  animation: typingBounce 1.4s infinite ease-in-out both;
+}
+.typing-dot:nth-child(1) { animation-delay: -0.32s; }
+.typing-dot:nth-child(2) { animation-delay: -0.16s; }
+
+@keyframes typingBounce {
+  0%, 80%, 100% { transform: scale(0); opacity: 0.3; }
+  40% { transform: scale(1); opacity: 1; }
+}
+
+/* Fade in up entry animation */
+.fade-in-up {
+  animation: fadeInUp 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Micro-Interaction Utility Classes for Hover Animations ──── */
+.nav-item-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 0.875rem;
+  min-height: 44px;
+  border-radius: 14px;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  font-weight: 600;
+  font-family: 'Verdana', 'Geneva', sans-serif;
+  cursor: pointer;
+  transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1),
+              background 0.22s ease,
+              color 0.22s ease,
+              box-shadow 0.22s ease;
+  width: 100%;
+  position: relative;
+  text-align: left;
+}
+
+.nav-item-btn:hover {
+  transform: translateX(4px);
+  background: var(--bg-hover);
+  color: var(--text-primary);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.15);
+}
+
+.nav-item-btn svg {
+  transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), color 0.22s ease;
+}
+
+.nav-item-btn:hover svg {
+  transform: scale(1.18) rotate(4deg);
+  color: var(--accent-green) !important;
+}
+
+.mobile-nav-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  background: none;
+  border: none;
+  padding: 0.35rem 0.5rem;
+  min-width: 54px;
+  cursor: pointer;
+  border-radius: 12px;
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+              color 0.2s ease,
+              background 0.2s ease;
+}
+
+.mobile-nav-btn:hover, .mobile-nav-btn:active {
+  transform: translateY(-3px) scale(1.06);
+  background: var(--bg-hover);
+}
+
+.mobile-nav-btn svg {
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.mobile-nav-btn:hover svg, .mobile-nav-btn:active svg {
+  transform: scale(1.2);
+}
+
+.icon-btn-hover {
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+              background 0.2s ease,
+              color 0.2s ease,
+              border-color 0.2s ease,
+              box-shadow 0.2s ease;
+  cursor: pointer;
+}
+
+.icon-btn-hover:hover {
+  transform: translateY(-2px) scale(1.08);
+  background: var(--bg-hover);
+  color: var(--accent-green);
+  border-color: rgba(43, 242, 160, 0.4);
+  box-shadow: 0 4px 14px var(--shadow-glow);
+}
+
+.icon-btn-hover:active {
+  transform: translateY(0px) scale(0.96);
+}
+
+.history-item-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.65rem 0.75rem;
+  border-radius: 14px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  cursor: pointer;
+  transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1),
+              background 0.22s ease,
+              border-color 0.22s ease,
+              box-shadow 0.22s ease;
+}
+
+.history-item-btn:hover {
+  transform: translateX(4px);
+  background: var(--bg-hover);
+  border-color: rgba(43, 242, 160, 0.35);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+}
+
+.star-btn-hover {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0.25rem;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.star-btn-hover:hover {
+  transform: scale(1.3) rotate(15deg);
+}
+
+.user-card-hover {
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1),
+              border-color 0.25s ease,
+              box-shadow 0.25s ease;
+}
+
+.user-card-hover:hover {
+  transform: translateY(-2px);
+  border-color: rgba(43, 242, 160, 0.4);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25), 0 0 12px var(--shadow-glow);
+}
+
+.option-card-hover {
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1),
+              border-color 0.25s ease,
+              background 0.25s ease,
+              box-shadow 0.25s ease;
+}
+
+.option-card-hover:hover {
+  transform: translateY(-3px) scale(1.01);
+  border-color: var(--accent-green);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.25), 0 0 16px var(--shadow-glow);
+}
+
+.faq-card-hover {
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1),
+              border-color 0.25s ease,
+              box-shadow 0.25s ease;
+}
+
+.faq-card-hover:hover {
+  transform: translateY(-2px);
+  border-color: var(--accent-green);
+  box-shadow: 0 6px 20px rgba(0,0,0,0.25);
+}
+
+.forum-card-hover {
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1),
+              border-color 0.25s ease,
+              box-shadow 0.25s ease;
+}
+
+.forum-card-hover:hover {
+  transform: translateY(-2px);
+  border-color: var(--accent-green);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+}
+
+.link-hover {
+  transition: transform 0.2s ease, color 0.2s ease, opacity 0.2s ease;
+  display: inline-block;
+}
+
+.link-hover:hover {
+  color: var(--accent-green);
+  transform: translateX(2px);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+
 

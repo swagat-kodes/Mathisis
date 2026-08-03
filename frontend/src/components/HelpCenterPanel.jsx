@@ -80,7 +80,7 @@ export default function HelpCenterPanel() {
           </h3>
 
           {filteredFaqs.map((faq, index) => (
-            <div key={index} style={styles.faqCard}>
+            <div key={index} className="faq-card-hover" style={styles.faqCard}>
               <div
                 style={styles.faqHeader}
                 onClick={() => setOpenFaq(openFaq === index ? null : index)}
@@ -102,7 +102,7 @@ export default function HelpCenterPanel() {
         </div>
 
         {/* Contact Support Card */}
-        <div style={styles.supportCard}>
+        <div className="user-card-hover" style={styles.supportCard}>
           <Mail size={22} color="var(--accent-green)" />
           <div>
             <h4 style={{ fontWeight: '700', fontSize: '0.92rem', color: 'var(--text-primary)' }}>Need direct support?</h4>

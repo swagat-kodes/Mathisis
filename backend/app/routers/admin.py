@@ -4,16 +4,17 @@ import logging
 import os
 import re
 import time
-from typing import Annotated
+from typing import Annotated, Optional
 
 from google import genai
 from google.genai import types
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
 from pypdf import PdfReader
 
 from app.auth import require_admin
 from app.config import GEMINI_API_KEY
 from app.database import get_supabase
+from app.models.schemas import SubjectCreate
 
 logger = logging.getLogger(__name__)
 
@@ -76,10 +77,9 @@ def embed_batch(texts: list[str]) -> list[list[float]]:
             exc_str = str(exc)
             is_rate_limit = "429" in exc_str or "RESOURCE_EXHAUSTED" in exc_str
             if is_rate_limit and attempt < EMBED_MAX_RETRIES:
-                # Parse retry delay from the error message if present
                 retry_match = re.search(r"retry[^\d]*(\d+(?:\.\d+)?)", exc_str, re.I)
                 suggested_delay = float(retry_match.group(1)) if retry_match else 0
-                backoff = max(suggested_delay, 2 ** attempt)  # exponential, minimum guided
+                backoff = max(suggested_delay, 2 ** attempt)
                 logger.warning(
                     "Embedding rate-limited (attempt %d/%d). Retrying in %.1fs…",
                     attempt, EMBED_MAX_RETRIES, backoff,
@@ -89,18 +89,68 @@ def embed_batch(texts: list[str]) -> list[list[float]]:
                 raise
 
 
-@router.post("/upload-pdf")
-async def upload_pdf(
+@router.post("/subjects")
+async def create_subject(
+    payload: SubjectCreate,
+    _admin=Depends(require_admin),
+):
+    """
+    Admin-only route to create a new subject for a given year & semester.
+    """
+    supabase = get_supabase()
+    clean_name = payload.subject_name.strip()
+
+    if not clean_name:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Subject name cannot be empty.",
+        )
+
+    # Check if subject already exists for this term
+    existing = (
+        supabase.table("subjects")
+        .select("*")
+        .eq("year", payload.year)
+        .eq("semester", payload.semester)
+        .eq("subject_name", clean_name)
+        .execute()
+    )
+    if existing.data and len(existing.data) > 0:
+        return existing.data[0]
+
+    try:
+        new_subj = (
+            supabase.table("subjects")
+            .insert({
+                "year": payload.year,
+                "semester": payload.semester,
+                "subject_name": clean_name,
+            })
+            .execute()
+        )
+        if new_subj.data and len(new_subj.data) > 0:
+            return new_subj.data[0]
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Could not create subject in database.",
+        )
+    except Exception as exc:
+        logger.error("Failed to create subject: %s", exc)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Database error when creating subject: {exc}",
+        )
+
+
+@router.post("/upload-textbook")
+async def upload_textbook(
     file: Annotated[UploadFile, File(description="PDF textbook file")],
-    year: Annotated[int, Form(ge=1, le=4)],
-    semester: Annotated[int, Form(ge=1, le=8)],
-    subject_name: Annotated[str, Form(min_length=1)],
-    book_name: Annotated[str, Form(min_length=1)],
+    subject_id: Annotated[str, Query(description="Subject ID")],
     _admin=Depends(require_admin),
 ):
     """
     Admin-only route.
-    Accepts a PDF, extracts text page-by-page, chunks it,
+    Accepts a PDF and subject_id, extracts text page-by-page, chunks it,
     generates Gemini embeddings, and bulk-inserts into Supabase.
     """
     if not file.filename or not file.filename.lower().endswith(".pdf"):
@@ -111,26 +161,22 @@ async def upload_pdf(
 
     supabase = get_supabase()
 
-    # ── Step 1: Resolve or create the subject ──────────────
-    subject_result = (
+    # Validate subject exists
+    subj_check = (
         supabase.table("subjects")
-        .select("id")
-        .eq("year", year)
-        .eq("semester", semester)
-        .eq("subject_name", subject_name)
+        .select("id, subject_name")
+        .eq("id", subject_id)
         .execute()
     )
-    if subject_result.data:
-        subject_id = subject_result.data[0]["id"]
-    else:
-        new_subject = (
-            supabase.table("subjects")
-            .insert({"year": year, "semester": semester, "subject_name": subject_name})
-            .execute()
+    if not subj_check.data:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Selected subject not found in database.",
         )
-        subject_id = new_subject.data[0]["id"]
 
-    # ── Step 2: Parse PDF ──────────────────────────────────
+    book_name = os.path.splitext(file.filename)[0].replace("_", " ").title()
+
+    # Parse PDF
     try:
         raw_bytes = await file.read()
         reader = PdfReader(io.BytesIO(raw_bytes))
@@ -140,7 +186,7 @@ async def upload_pdf(
             detail=f"Failed to parse PDF: {exc}",
         )
 
-    # ── Step 3: Extract text per page and chunk ────────────
+    # Extract text per page and chunk
     records_to_insert: list[dict] = []
     for page_num, page in enumerate(reader.pages, start=1):
         try:
@@ -160,7 +206,6 @@ async def upload_pdf(
                 "book_name": book_name,
                 "page_number": page_num,
                 "chunk_index": chunk_idx,
-                # embedding added below in batches
             })
 
     if not records_to_insert:
@@ -169,7 +214,7 @@ async def upload_pdf(
             detail="No extractable text found in the PDF.",
         )
 
-    # ── Step 4: Generate embeddings in batches ─────────────
+    # Generate embeddings in batches
     total_batches = math.ceil(len(records_to_insert) / EMBED_BATCH_SIZE)
     logger.info(
         "Generating embeddings for %d chunks in %d batches",
@@ -186,7 +231,6 @@ async def upload_pdf(
             embeddings = embed_batch(texts)
             for record, emb in zip(batch, embeddings):
                 record["embedding"] = emb
-            # Throttle between batches to stay within the free-tier rate limit
             if batch_idx < total_batches - 1:
                 time.sleep(EMBED_INTER_BATCH_DELAY)
     except Exception as exc:
@@ -195,8 +239,8 @@ async def upload_pdf(
             detail=f"Gemini embedding API error: {exc}",
         )
 
-    # ── Step 5: Bulk insert into Supabase ──────────────────
-    INSERT_BATCH = 100  # Supabase/PostgREST row insert limit per request
+    # Bulk insert into Supabase
+    INSERT_BATCH = 100
     inserted_count = 0
     try:
         for i in range(0, len(records_to_insert), INSERT_BATCH):
@@ -211,7 +255,51 @@ async def upload_pdf(
 
     return {
         "message": "PDF processed successfully.",
+        "book_name": book_name,
         "subject_id": subject_id,
         "pages_processed": len(reader.pages),
+        "chunks_stored": len(reader.pages),
         "chunks_inserted": inserted_count,
     }
+
+
+@router.post("/upload-pdf")
+async def upload_pdf(
+    file: Annotated[UploadFile, File(description="PDF textbook file")],
+    year: Annotated[int, Form(ge=1, le=4)],
+    semester: Annotated[int, Form(ge=1, le=8)],
+    subject_name: Annotated[str, Form(min_length=1)],
+    book_name: Annotated[str, Form(min_length=1)],
+    _admin=Depends(require_admin),
+):
+    """
+    Legacy admin route accepting form fields for subject creation + upload.
+    """
+    if not file.filename or not file.filename.lower().endswith(".pdf"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Only PDF files are accepted.",
+        )
+
+    supabase = get_supabase()
+
+    subject_result = (
+        supabase.table("subjects")
+        .select("id")
+        .eq("year", year)
+        .eq("semester", semester)
+        .eq("subject_name", subject_name)
+        .execute()
+    )
+    if subject_result.data:
+        subject_id = subject_result.data[0]["id"]
+    else:
+        new_subject = (
+            supabase.table("subjects")
+            .insert({"year": year, "semester": semester, "subject_name": subject_name})
+            .execute()
+        )
+        subject_id = new_subject.data[0]["id"]
+
+    return await upload_textbook(file=file, subject_id=subject_id, _admin=_admin)
+

@@ -235,7 +235,7 @@ export default function ForumPanel({ subjectId: externalSubjectId }) {
           </div>
         )}
         {queries.map(q => (
-          <div key={q.id} className="fade-in-up" style={{
+          <div key={q.id} className="forum-card-hover fade-in-up" style={{
             ...styles.queryCard,
             borderColor: q.is_flagged ? 'var(--accent-gold)' : 'var(--border-color)',
             background: q.is_flagged ? 'rgba(245,158,11,0.06)' : 'var(--bg-card)',

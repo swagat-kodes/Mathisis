@@ -240,8 +240,8 @@ export default function AdminDashboard() {
 
             <button
               onClick={() => handleNavTabClick('upload')}
+              className="nav-item-btn"
               style={{
-                ...styles.navItem,
                 ...(activeTab === 'upload' ? styles.navItemActive : {})
               }}
             >
@@ -252,8 +252,8 @@ export default function AdminDashboard() {
 
             <button
               onClick={() => handleNavTabClick('forum')}
+              className="nav-item-btn"
               style={{
-                ...styles.navItem,
                 ...(activeTab === 'forum' ? styles.navItemActive : {})
               }}
             >
@@ -263,8 +263,8 @@ export default function AdminDashboard() {
 
             <button
               onClick={() => handleNavTabClick('help')}
+              className="nav-item-btn"
               style={{
-                ...styles.navItem,
                 ...(activeTab === 'help' ? styles.navItemActive : {})
               }}
             >
@@ -274,8 +274,8 @@ export default function AdminDashboard() {
 
             <button
               onClick={() => handleNavTabClick('preferences')}
+              className="nav-item-btn"
               style={{
-                ...styles.navItem,
                 ...(activeTab === 'preferences' ? styles.navItemActive : {})
               }}
             >
@@ -285,7 +285,7 @@ export default function AdminDashboard() {
           </div>
 
           {/* User Profile Card at Bottom */}
-          <div style={styles.userCard}>
+          <div className="user-card-hover" style={styles.userCard}>
             <div style={styles.userAvatar}>
               <Shield size={16} color="var(--accent-green)" />
             </div>
@@ -293,7 +293,7 @@ export default function AdminDashboard() {
               <span style={styles.userName}>{user?.email?.split('@')[0]}</span>
               <span style={styles.userRole}>Administrator</span>
             </div>
-            <button onClick={handleSignOut} title="Sign Out" style={styles.logoutBtn}>
+            <button onClick={handleSignOut} title="Sign Out" className="icon-btn-hover" style={styles.logoutBtn}>
               <LogOut size={16} color="var(--text-muted)" />
             </button>
           </div>
@@ -305,6 +305,7 @@ export default function AdminDashboard() {
           <div style={styles.topControlBar}>
             <button
               onClick={() => setSidebarOpen(!sidebarOpen)}
+              className="icon-btn-hover"
               style={styles.toggleMenuBtn}
               title={sidebarOpen ? 'Close Navigation' : 'Open Navigation'}
             >
@@ -502,8 +503,8 @@ export default function AdminDashboard() {
             <div style={styles.mobileBottomNav}>
               <button
                 onClick={() => setActiveTab('upload')}
+                className="mobile-nav-btn"
                 style={{
-                  ...styles.mobileNavItem,
                   color: activeTab === 'upload' ? 'var(--accent-green)' : 'var(--text-muted)'
                 }}
               >
@@ -513,8 +514,8 @@ export default function AdminDashboard() {
 
               <button
                 onClick={() => setActiveTab('forum')}
+                className="mobile-nav-btn"
                 style={{
-                  ...styles.mobileNavItem,
                   color: activeTab === 'forum' ? 'var(--accent-green)' : 'var(--text-muted)'
                 }}
               >
@@ -524,8 +525,8 @@ export default function AdminDashboard() {
 
               <button
                 onClick={() => setActiveTab('help')}
+                className="mobile-nav-btn"
                 style={{
-                  ...styles.mobileNavItem,
                   color: activeTab === 'help' ? 'var(--accent-green)' : 'var(--text-muted)'
                 }}
               >
@@ -535,8 +536,8 @@ export default function AdminDashboard() {
 
               <button
                 onClick={() => setActiveTab('preferences')}
+                className="mobile-nav-btn"
                 style={{
-                  ...styles.mobileNavItem,
                   color: activeTab === 'preferences' ? 'var(--accent-green)' : 'var(--text-muted)'
                 }}
               >
@@ -546,8 +547,8 @@ export default function AdminDashboard() {
 
               <button
                 onClick={() => setSidebarOpen(true)}
+                className="mobile-nav-btn"
                 style={{
-                  ...styles.mobileNavItem,
                   color: sidebarOpen ? 'var(--accent-green)' : 'var(--text-muted)'
                 }}
               >
