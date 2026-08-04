@@ -25,19 +25,6 @@ EMBED_MODEL = "gemini-embedding-001"
 TOP_K_RESULTS = 12
 
 
-def _parse_base64_image(image_str: str) -> tuple[bytes, str]:
-    """Parses base64 image string or Data URL into bytes and mime type."""
-    mime_type = "image/jpeg"
-    if image_str.startswith("data:"):
-        header, base64_data = image_str.split(",", 1)
-        if ";" in header and ":" in header:
-            mime_type = header.split(":")[1].split(";")[0]
-    else:
-        base64_data = image_str
-    image_bytes = base64.b64decode(base64_data)
-    return image_bytes, mime_type
-
-
 def _build_rag_prompt(query: str, contexts: list[dict], answer_style: str = "detailed", max_chunks: int = 12) -> str:
     """Constructs the RAG prompt from retrieved context chunks."""
     contexts = contexts[:max_chunks]
@@ -59,7 +46,8 @@ def _build_rag_prompt(query: str, contexts: list[dict], answer_style: str = "det
         else "Provide a comprehensive, detailed, step-by-step explanation with clear examples."
     )
 
-    return f"""You are Mathisis AI, an engineering AI companion. Use the provided textbook excerpts below to answer the student's question.
+    if contexts:
+        return f"""You are Mathisis AI, an engineering AI companion. Use the provided textbook excerpts below to answer the student's question.
 Response Style Instruction: {style_instruction}
 
 If the student asks a broad or foundational question, prioritize intro definitions or basic summaries from early chapters found in the context.
@@ -74,6 +62,61 @@ At the end of your answer, list all cited sources in the format:
 Student Question: {query}
 
 Answer:"""
+    else:
+        return f"""You are Mathisis AI, an engineering AI companion. Analyze the student's request and answer clearly.
+Response Style Instruction: {style_instruction}
+
+Student Question: {query}
+
+Answer:"""
+
+
+def _parse_base64_image(image_str: str) -> tuple[bytes, str]:
+    """Parses base64 data URL or raw base64 string into (bytes, mime_type)."""
+    if "," in image_str:
+        header, encoded = image_str.split(",", 1)
+        mime_match = re.search(r"data:(image/\w+);base64", header)
+        mime_type = mime_match.group(1) if mime_match else "image/jpeg"
+    else:
+        encoded = image_str
+        mime_type = "image/jpeg"
+
+    img_bytes = base64.b64decode(encoded)
+    return img_bytes, mime_type
+
+
+def _generate_multimodal_with_gemini(prompt: str, image_str: str) -> str:
+    """Generates chat answer using Gemini Multimodal vision model."""
+    api_key = GEMINI_API_KEY or os.getenv("GEMINI_API_KEY")
+    if not api_key:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="GEMINI_API_KEY environment variable is missing.",
+        )
+    client = gemini_client or genai.Client(api_key=api_key)
+    img_bytes, mime_type = _parse_base64_image(image_str)
+    image_part = types.Part.from_bytes(data=img_bytes, mime_type=mime_type)
+
+    models_to_try = ["gemini-2.5-flash", "gemini-1.5-flash", "gemini-2.0-flash"]
+    last_exc = None
+    for model in models_to_try:
+        try:
+            response = client.models.generate_content(
+                model=model,
+                contents=[image_part, prompt],
+            )
+            if response.text:
+                return response.text
+        except Exception as exc:
+            logger.warning("Gemini multimodal error with model %s: %s", model, exc)
+            last_exc = exc
+
+    if last_exc:
+        raise last_exc
+    raise HTTPException(
+        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        detail="Gemini multimodal generation returned empty response.",
+    )
 
 
 async def _embed_query_with_retry(query: str, retries: int = 4) -> list[float]:
@@ -155,34 +198,45 @@ async def list_materials(
     """Lists uploaded textbook materials for documentation grid."""
     supabase = get_supabase()
     
-    emb_query = supabase.table("textbook_embeddings").select("id, subject_id, book_name, page_number")
+    # 1. Fetch subjects first to filter materials by year/semester
+    subj_query = supabase.table("subjects").select("*")
+    if year is not None:
+        subj_query = subj_query.eq("year", year)
+    if semester is not None:
+        subj_query = subj_query.eq("semester", semester)
     if subject_id:
-        emb_query = emb_query.eq("subject_id", subject_id)
+        subj_query = subj_query.eq("id", subject_id)
 
-    rows = emb_query.execute().data or []
-    if not rows:
+    subjs = subj_query.execute().data or []
+    if not subjs:
         return []
 
-    subj_ids = list({r["subject_id"] for r in rows if r.get("subject_id")})
-    subj_dict = {}
-    if subj_ids:
-        subjs = supabase.table("subjects").select("*").in_("id", subj_ids).execute().data or []
-        subj_dict = {s["id"]: s for s in subjs}
+    subj_dict = {s["id"]: s for s in subjs}
+    target_subject_ids = list(subj_dict.keys())
 
+    # 2. Fetch distinct books/materials from textbook_embeddings for target subjects
+    emb_query = (
+        supabase.table("textbook_embeddings")
+        .select("subject_id, book_name, page_number")
+        .in_("subject_id", target_subject_ids)
+        .execute()
+    )
+
+    rows = emb_query.data or []
     materials_map = {}
     for r in rows:
-        sid = r.get("subject_id", "general")
+        sid = r["subject_id"]
         bname = r["book_name"]
         key = (sid, bname)
-        s_info = subj_dict.get(sid, {})
         if key not in materials_map:
+            s_info = subj_dict.get(sid, {})
             materials_map[key] = {
                 "id": f"{sid}-{bname}",
                 "subject_id": sid,
                 "book_name": bname,
-                "subject_name": s_info.get("subject_name", "General Engineering"),
-                "year": s_info.get("year", 1),
-                "semester": s_info.get("semester", 1),
+                "subject_name": s_info.get("subject_name", "General"),
+                "year": s_info.get("year"),
+                "semester": s_info.get("semester"),
                 "max_page": r.get("page_number") or 1,
             }
         else:
@@ -198,142 +252,55 @@ async def ask_question(
     request: AskRequest,
     _user=Depends(get_current_user),
 ):
-    """Student RAG and Multimodal Chat endpoint with optional subject_id and vision support."""
+    """Student RAG endpoint with answer_style support and image vision query capability."""
     supabase = get_supabase()
-    contexts = []
 
-    # Step 1: Embed query and search context if query text exists
-    if request.query and request.query.strip():
+    # Step 1: Embed query (if query string is provided)
+    contexts = []
+    if request.query and len(request.query.strip()) >= 3:
         try:
             query_embedding = await _embed_query_with_retry(request.query)
-            if request.subject_id:
-                rpc_result = supabase.rpc(
-                    "match_embeddings",
-                    {
-                        "query_embedding": query_embedding,
-                        "p_subject_id": request.subject_id,
-                        "match_count": TOP_K_RESULTS,
-                    },
-                ).execute()
-                contexts = rpc_result.data or []
-            else:
-                try:
-                    rpc_result = supabase.rpc(
-                        "match_embeddings",
-                        {
-                            "query_embedding": query_embedding,
-                            "p_subject_id": None,
-                            "match_count": TOP_K_RESULTS,
-                        },
-                    ).execute()
-                    contexts = rpc_result.data or []
-                except Exception:
-                    contexts = []
-
-                if not contexts:
-                    res = (
-                        supabase.table("textbook_embeddings")
-                        .select("id, content, book_name, page_number")
-                        .limit(TOP_K_RESULTS)
-                        .execute()
-                    )
-                    contexts = res.data or []
+            rpc_result = supabase.rpc(
+                "match_embeddings",
+                {
+                    "query_embedding": query_embedding,
+                    "p_subject_id": request.subject_id,
+                    "match_count": TOP_K_RESULTS,
+                },
+            ).execute()
+            contexts = rpc_result.data or []
         except Exception as exc:
-            logger.warning("Embedding search warning: %s", exc)
+            logger.warning("Vector search error: %s", exc)
 
-    # Step 2: Multimodal image processing if request.image is provided
-    if request.image:
-        try:
-            image_bytes, mime_type = _parse_base64_image(request.image)
-            api_key = GEMINI_API_KEY or os.getenv("GEMINI_API_KEY")
-            if not api_key:
-                raise HTTPException(
-                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail="GEMINI_API_KEY environment variable is missing.",
-                )
-            client = gemini_client or genai.Client(api_key=api_key)
+    if not contexts and not request.image_data:
+        return AskResponse(
+            answer="I could not find relevant textbook material for this subject yet. "
+                   "Please ask your admin to upload the course textbooks.",
+            sources=[],
+        )
 
-            style_instruction = (
-                "Keep your response concise, direct, and focused on key facts/definitions."
-                if (request.answer_style or "concise") == "concise"
-                else "Provide a comprehensive, detailed, step-by-step explanation with clear examples."
-            )
+    await asyncio.sleep(1)
 
-            prompt_text = (
-                f"You are Mathisis AI, an engineering AI companion. Analyze the attached image alongside the student's question.\n"
-                f"Response Style Instruction: {style_instruction}\n\n"
-                f"Student Question: {request.query or 'Please analyze this image.'}"
-            )
-
-            if contexts:
-                context_blocks = []
-                for i, ctx in enumerate(contexts[:12], start=1):
-                    block = f"[Source {i}]\nBook: {ctx['book_name']}\nPage: {ctx.get('page_number', 'N/A')}\nContent: {ctx['content']}"
-                    context_blocks.append(block)
-                context_text = "\n\n---\n\n".join(context_blocks)
-                prompt_text += f"\n\n=== TEXTBOOK EXCERPTS START ===\n{context_text}\n=== TEXTBOOK EXCERPTS END ==="
-
-            image_part = types.Part.from_bytes(data=image_bytes, mime_type=mime_type)
-
-            response = client.models.generate_content(
-                model="gemini-1.5-flash",
-                contents=[image_part, prompt_text],
-            )
-            answer_text = response.text or "Analyzed image successfully."
-
-            seen = set()
-            sources: list[Source] = []
-            for ctx in contexts:
-                key = (ctx["book_name"], ctx.get("page_number"))
-                if key not in seen:
-                    seen.add(key)
-                    sources.append(
-                        Source(
-                            book_name=ctx["book_name"],
-                            page_number=ctx.get("page_number"),
-                            similarity=round(ctx.get("similarity", 0), 4),
-                        )
-                    )
-
-            return AskResponse(answer=answer_text, sources=sources)
-
-        except HTTPException:
-            raise
-        except Exception as exc:
-            logger.error("Multimodal vision processing failed: %s", exc)
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Multimodal vision processing failed: {exc}",
-            )
-
-    # Step 3: Text query handling
-    style = request.answer_style or "concise"
-
-    if contexts:
-        prompt = _build_rag_prompt(request.query, contexts, answer_style=style)
-    else:
-        prompt = f"You are Mathisis AI, an engineering AI companion. Answer the following question:\nQuestion: {request.query}\nAnswer Style: {style}"
-
+    # Step 2: Build prompt and generate answer
     try:
-        answer_text = _generate_with_groq(prompt)
-    except Exception as exc:
-        logger.warning("Groq generation failed, falling back to Gemini: %s", exc)
-        try:
-            api_key = GEMINI_API_KEY or os.getenv("GEMINI_API_KEY")
-            client = gemini_client or genai.Client(api_key=api_key)
-            resp = client.models.generate_content(
-                model="gemini-1.5-flash",
-                contents=prompt,
-            )
-            answer_text = resp.text or "No answer returned."
-        except Exception as exc2:
-            logger.error("Gemini generation fallback failed: %s", exc2)
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Generation failed: {exc2}",
-            )
+        style = request.answer_style or "detailed"
+        prompt = _build_rag_prompt(request.query, contexts, answer_style=style)
 
-    # Build deduplicated source list
+        if request.image_data:
+            answer_text = _generate_multimodal_with_gemini(prompt, request.image_data)
+        else:
+            answer_text = _generate_with_groq(prompt)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.error("Answer generation failed: %s", exc)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Answer generation failed: {exc}",
+        )
+
+
+    # Step 4: Build deduplicated source list
     seen = set()
     sources: list[Source] = []
     for ctx in contexts:

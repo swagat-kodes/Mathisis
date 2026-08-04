@@ -60,6 +60,7 @@ export default function StudentDashboard() {
   const [theme, setTheme] = useState(() => localStorage.getItem('mathisis_theme') || 'dark')
   const [answerStyle, setAnswerStyle] = useState(() => localStorage.getItem('mathisis_answer_style') || 'detailed')
 
+
   // Initialize theme on mount
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme)
@@ -325,7 +326,16 @@ export default function StudentDashboard() {
           <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
             {activeTab === 'chat' && (
               <ChatPanel
+                selectedYear={selectedYear}
+                setSelectedYear={setSelectedYear}
+                selectedSemester={selectedSemester}
+                setSelectedSemester={setSelectedSemester}
+                years={years}
+                availableSemesters={availableSemesters}
+                subjects={subjects}
+                setSubjects={setSubjects}
                 selectedSubject={selectedSubject}
+                setSelectedSubject={setSelectedSubject}
                 activeChatTitle={activeChatTitle}
                 historyOpen={historyOpen}
                 setHistoryOpen={setHistoryOpen}
