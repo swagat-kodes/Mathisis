@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { FileText, Download, BookOpen, Search, Layers, ExternalLink } from 'lucide-react'
 import toast from 'react-hot-toast'
 
-const API = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000'
+const API = (import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000').replace(/\/+$/, '')
 
 export default function DocumentationPanel({
   selectedYear, setSelectedYear,

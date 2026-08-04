@@ -142,15 +142,43 @@ async def create_subject(
         )
 
 
+def get_or_create_default_subject(supabase) -> str:
+    """Helper to ensure a valid default subject UUID exists for foreign key constraints."""
+    try:
+        existing = supabase.table("subjects").select("id").eq("subject_name", "General Engineering").execute()
+        if existing.data and len(existing.data) > 0:
+            return existing.data[0]["id"]
+        
+        new_subj = (
+            supabase.table("subjects")
+            .insert({
+                "year": 1,
+                "semester": 1,
+                "subject_name": "General Engineering",
+            })
+            .execute()
+        )
+        if new_subj.data and len(new_subj.data) > 0:
+            return new_subj.data[0]["id"]
+
+        all_subjs = supabase.table("subjects").select("id").limit(1).execute()
+        if all_subjs.data:
+            return all_subjs.data[0]["id"]
+    except Exception as exc:
+        logger.warning("Could not create or fetch default subject: %s", exc)
+
+    return "00000000-0000-0000-0000-000000000000"
+
+
 @router.post("/upload-textbook")
 async def upload_textbook(
     file: Annotated[UploadFile, File(description="PDF textbook file")],
-    subject_id: Annotated[str, Query(description="Subject ID")],
+    subject_id: Annotated[Optional[str], Query(description="Subject ID")] = None,
     _admin=Depends(require_admin),
 ):
     """
     Admin-only route.
-    Accepts a PDF and subject_id, extracts text page-by-page, chunks it,
+    Accepts a PDF, extracts text page-by-page, chunks it,
     generates Gemini embeddings, and bulk-inserts into Supabase.
     """
     if not file.filename or not file.filename.lower().endswith(".pdf"):
@@ -161,18 +189,18 @@ async def upload_textbook(
 
     supabase = get_supabase()
 
-    # Validate subject exists
-    subj_check = (
-        supabase.table("subjects")
-        .select("id, subject_name")
-        .eq("id", subject_id)
-        .execute()
-    )
-    if not subj_check.data:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Selected subject not found in database.",
+    # Validate subject exists or fallback to default subject
+    if not subject_id:
+        subject_id = get_or_create_default_subject(supabase)
+    else:
+        subj_check = (
+            supabase.table("subjects")
+            .select("id, subject_name")
+            .eq("id", subject_id)
+            .execute()
         )
+        if not subj_check.data:
+            subject_id = get_or_create_default_subject(supabase)
 
     book_name = os.path.splitext(file.filename)[0].replace("_", " ").title()
 

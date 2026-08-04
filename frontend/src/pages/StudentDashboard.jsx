@@ -14,7 +14,7 @@ import {
   MessageCircle, Menu, History, X
 } from 'lucide-react'
 
-const API = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000'
+const API = (import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000').replace(/\/+$/, '')
 
 export default function StudentDashboard() {
   const { user, profile, signOut } = useAuth()
@@ -325,16 +325,7 @@ export default function StudentDashboard() {
           <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
             {activeTab === 'chat' && (
               <ChatPanel
-                selectedYear={selectedYear}
-                setSelectedYear={setSelectedYear}
-                selectedSemester={selectedSemester}
-                setSelectedSemester={setSelectedSemester}
-                years={years}
-                availableSemesters={availableSemesters}
-                subjects={subjects}
-                setSubjects={setSubjects}
                 selectedSubject={selectedSubject}
-                setSelectedSubject={setSelectedSubject}
                 activeChatTitle={activeChatTitle}
                 historyOpen={historyOpen}
                 setHistoryOpen={setHistoryOpen}

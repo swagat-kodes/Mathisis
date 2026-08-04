@@ -1,18 +1,16 @@
 import { useState, useEffect, useRef } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { supabase } from '../lib/supabaseClient'
+import toast from 'react-hot-toast'
 import {
   Send, BookOpen, Sparkles, User, AlertCircle,
-  PanelRightClose, PanelRightOpen
+  Paperclip, X, PanelRightClose, PanelRightOpen
 } from 'lucide-react'
 
-const API = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000'
+const API = (import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000').replace(/\/+$/, '')
 
 export default function ChatPanel({
-  selectedYear, setSelectedYear,
-  selectedSemester, setSelectedSemester,
-  years, availableSemesters,
-  subjects, selectedSubject, setSelectedSubject, setSubjects,
+  selectedSubject,
   activeChatTitle,
   historyOpen, setHistoryOpen,
   answerStyle
@@ -22,40 +20,21 @@ export default function ChatPanel({
     {
       id: 'welcome-initial',
       role: 'assistant',
-      text: "👋 Hi! I'm Mathisis AI. Select a subject to get started.",
+      text: "👋 Hi! I'm Mathisis AI. Ask me any engineering question, formula, or attach an image to analyze!",
       sources: [],
     }
   ])
   const [input, setInput] = useState('')
+  const [attachedImage, setAttachedImage] = useState(null)
+  const [isDragging, setIsDragging] = useState(false)
   const [loading, setLoading] = useState(false)
+  
   const messagesEndRef = useRef(null)
+  const fileInputRef = useRef(null)
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages])
-
-  // Change message when subject changes
-  useEffect(() => {
-    if (selectedSubject) {
-      setMessages([
-        {
-          id: 'welcome-' + selectedSubject.id,
-          role: 'assistant',
-          text: `📚 Ready to study **${selectedSubject.subject_name}**! Ask me any concept, formula, or exam question, and I'll retrieve answers directly from your course materials.`,
-          sources: [],
-        }
-      ])
-    } else {
-      setMessages([
-        {
-          id: 'welcome-initial',
-          role: 'assistant',
-          text: "👋 Hi! I'm Mathisis AI. Select a subject to get started.",
-          sources: [],
-        }
-      ])
-    }
-  }, [selectedSubject?.id])
+  }, [messages, loading])
 
   // Load chat topic from history
   useEffect(() => {
@@ -72,12 +51,58 @@ export default function ChatPanel({
     }
   }, [activeChatTitle])
 
-  const sendMessage = async () => {
-    if (!input.trim() || loading || !selectedSubject?.id) return
+  const processImageFile = (file) => {
+    if (!file) return
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please select a valid image file (PNG, JPEG, WebP)')
+      return
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error('Image size must be less than 10MB')
+      return
+    }
 
-    const userMsg = { id: Date.now(), role: 'user', text: input }
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      setAttachedImage({
+        file,
+        name: file.name,
+        base64: e.target.result
+      })
+      toast.success('Image attached!')
+    }
+    reader.readAsDataURL(file)
+  }
+
+  const handleFileSelect = (e) => {
+    const file = e.target.files?.[0]
+    if (file) processImageFile(file)
+    e.target.value = ''
+  }
+
+  const handleDrop = (e) => {
+    e.preventDefault()
+    setIsDragging(false)
+    const file = e.dataTransfer.files?.[0]
+    if (file) processImageFile(file)
+  }
+
+  const sendMessage = async () => {
+    if ((!input.trim() && !attachedImage) || loading) return
+
+    const currentText = input.trim()
+    const currentImg = attachedImage
+
+    const userMsg = {
+      id: Date.now(),
+      role: 'user',
+      text: currentText,
+      image: currentImg ? currentImg.base64 : null
+    }
+
     setMessages(prev => [...prev, userMsg])
     setInput('')
+    setAttachedImage(null)
     setLoading(true)
 
     try {
@@ -91,8 +116,9 @@ export default function ChatPanel({
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
-          subject_id: selectedSubject.id,
-          query: input,
+          subject_id: selectedSubject?.id || null,
+          query: currentText || 'Please analyze this image.',
+          image: currentImg ? currentImg.base64 : null,
           answer_style: answerStyle || 'concise'
         }),
       })
@@ -127,7 +153,7 @@ export default function ChatPanel({
 
   return (
     <div style={styles.panel}>
-      {/* 1. Header (Subject Selectors & Desktop History Toggle) */}
+      {/* 1. Header (Mode Indicator & History Toggle) */}
       <div style={styles.header}>
         <div style={styles.headerLeft}>
           <div style={styles.aiLogoIcon}>
@@ -135,67 +161,18 @@ export default function ChatPanel({
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
-              <h2 style={styles.headerTitle}>Mathisis AI</h2>
+              <h2 style={styles.headerTitle}>Mathisis AI Companion</h2>
               <span className="badge badge-green" style={{ fontSize: '0.68rem', padding: '0.15rem 0.5rem' }}>
                 <Sparkles size={9} /> {answerStyle === 'detailed' ? 'Detailed Mode' : 'Concise Mode'}
               </span>
             </div>
             <p style={styles.headerSub}>
-              {selectedSubject ? `Active: ${selectedSubject.subject_name}` : 'Select Year, Semester & Subject'}
+              RAG-Powered Engineering Companion & Vision Multimodal AI
             </p>
           </div>
         </div>
 
         <div style={styles.headerFiltersRow}>
-          {/* Inline Filters */}
-          <div style={styles.filterGroup}>
-            <select
-              id="chat-year-select"
-              className="select-field"
-              value={selectedYear}
-              onChange={e => {
-                setSelectedYear(e.target.value)
-                setSelectedSemester('')
-                setSubjects([])
-                setSelectedSubject(null)
-              }}
-              style={styles.selectInputShort}
-            >
-              <option value="">Year</option>
-              {years?.map(y => <option key={y} value={y}>Year {y}</option>)}
-            </select>
-
-            <select
-              id="chat-sem-select"
-              className="select-field"
-              value={selectedSemester}
-              onChange={e => {
-                setSelectedSemester(e.target.value)
-                setSelectedSubject(null)
-              }}
-              disabled={!selectedYear}
-              style={styles.selectInputShort}
-            >
-              <option value="">Sem</option>
-              {availableSemesters?.map(s => <option key={s} value={s}>Sem {s}</option>)}
-            </select>
-
-            <select
-              id="chat-subject-select"
-              className="select-field"
-              value={selectedSubject?.id || ''}
-              onChange={e => {
-                const sub = subjects.find(s => s.id === e.target.value)
-                setSelectedSubject(sub || null)
-              }}
-              disabled={!selectedSemester || subjects.length === 0}
-              style={styles.selectInputLong}
-            >
-              <option value="">{subjects.length ? 'Select Subject...' : 'No subject'}</option>
-              {subjects.map(s => <option key={s.id} value={s.id}>{s.subject_name}</option>)}
-            </select>
-          </div>
-
           {/* Desktop Toggle Button for Right Sidebar */}
           <button
             onClick={() => setHistoryOpen(!historyOpen)}
@@ -230,7 +207,22 @@ export default function ChatPanel({
 
             {/* Bubble */}
             <div style={styles.bubble(msg.role)}>
-              <p style={styles.bubbleText}>{msg.text}</p>
+              {msg.image && (
+                <img
+                  src={msg.image}
+                  alt="User attached image"
+                  style={{
+                    maxWidth: '220px',
+                    maxHeight: '180px',
+                    borderRadius: '10px',
+                    objectFit: 'cover',
+                    marginBottom: msg.text ? '0.5rem' : '0',
+                    display: 'block',
+                    border: '1px solid var(--border-color)'
+                  }}
+                />
+              )}
+              {msg.text && <p style={styles.bubbleText}>{msg.text}</p>}
             </div>
 
             {/* Citations */}
@@ -264,36 +256,79 @@ export default function ChatPanel({
         <div ref={messagesEndRef} />
       </div>
 
-      {/* 3. Pinned Input Bar */}
-      <div style={styles.inputBarContainer}>
+      {/* 3. Pinned Input Bar with Drag & Drop and Image Preview */}
+      <div
+        style={{
+          ...styles.inputBarContainer,
+          border: isDragging ? '2px dashed var(--accent-green)' : '1px solid var(--border-color)'
+        }}
+        onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+        onDragLeave={() => setIsDragging(false)}
+        onDrop={handleDrop}
+      >
+        {/* Hidden File Input */}
+        <input
+          type="file"
+          ref={fileInputRef}
+          accept="image/png, image/jpeg, image/webp"
+          onChange={handleFileSelect}
+          style={{ display: 'none' }}
+        />
+
+        {/* Attached Image Thumbnail Preview */}
+        {attachedImage && (
+          <div style={styles.previewContainer}>
+            <div style={styles.previewBox}>
+              <img src={attachedImage.base64} alt="Preview" style={styles.previewThumb} />
+              <span style={styles.previewName}>{attachedImage.name}</span>
+              <button
+                type="button"
+                onClick={() => setAttachedImage(null)}
+                style={styles.removeImageBtn}
+                title="Remove image"
+              >
+                <X size={14} />
+              </button>
+            </div>
+          </div>
+        )}
+
         <div style={styles.inputRow}>
+          <button
+            type="button"
+            className="icon-btn-hover"
+            onClick={() => fileInputRef.current?.click()}
+            style={styles.attachBtn}
+            title="Attach Image (PNG, JPEG, WebP)"
+          >
+            <Paperclip size={18} color={attachedImage ? 'var(--accent-green)' : 'var(--text-muted)'} />
+          </button>
+
           <textarea
             id="chat-input"
             style={styles.textarea}
-            placeholder={
-              selectedSubject
-                ? `Ask Mathisis AI about ${selectedSubject.subject_name}...`
-                : 'Select your subject above first...'
-            }
+            placeholder="Ask Mathisis AI a question or drag & drop an image..."
             value={input}
             onChange={e => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
             rows={1}
-            disabled={!selectedSubject?.id || loading}
+            disabled={loading}
           />
+
           <button
             id="chat-send-btn"
             className="btn-primary"
             onClick={sendMessage}
-            disabled={!input.trim() || loading || !selectedSubject?.id}
+            disabled={(!input.trim() && !attachedImage) || loading}
             style={styles.sendBtn}
             title="Send Message"
           >
             <Send size={18} />
           </button>
         </div>
+
         <p style={styles.inputHint}>
-          Press <kbd style={styles.kbd}>Enter</kbd> to send · <kbd style={styles.kbd}>Shift + Enter</kbd> for new line
+          Press <kbd style={styles.kbd}>Enter</kbd> to send · <kbd style={styles.kbd}>Shift + Enter</kbd> for new line · Attach images for vision AI
         </p>
       </div>
     </div>
@@ -356,26 +391,6 @@ const styles = {
     alignItems: 'center',
     gap: '0.5rem',
     flexWrap: 'wrap',
-  },
-  filterGroup: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0.375rem',
-    flexWrap: 'wrap',
-  },
-  selectInputShort: {
-    minWidth: '80px',
-    maxWidth: '100px',
-    padding: '0.4rem 1.6rem 0.4rem 0.6rem',
-    fontSize: '0.78rem',
-    minHeight: '40px',
-  },
-  selectInputLong: {
-    minWidth: '130px',
-    maxWidth: '200px',
-    padding: '0.4rem 1.6rem 0.4rem 0.6rem',
-    fontSize: '0.78rem',
-    minHeight: '40px',
   },
   historyToggleBtn: {
     background: 'var(--bg-card)',
@@ -449,11 +464,63 @@ const styles = {
     borderTop: '1px solid var(--border-color)',
     background: 'var(--bg-panel)',
     flexShrink: 0,
+    transition: 'border-color 0.2s',
+  },
+  previewContainer: {
+    marginBottom: '0.5rem',
+    display: 'flex',
+    alignItems: 'center',
+  },
+  previewBox: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '0.5rem',
+    padding: '0.35rem 0.6rem',
+    borderRadius: '10px',
+    background: 'var(--bg-card)',
+    border: '1px solid var(--border-color)',
+  },
+  previewThumb: {
+    width: '32px',
+    height: '32px',
+    borderRadius: '6px',
+    objectFit: 'cover',
+  },
+  previewName: {
+    fontSize: '0.78rem',
+    color: 'var(--text-primary)',
+    maxWidth: '160px',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap',
+  },
+  removeImageBtn: {
+    background: 'none',
+    border: 'none',
+    color: 'var(--text-muted)',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: '2px',
+    borderRadius: '4px',
   },
   inputRow: {
     display: 'flex',
-    gap: '0.625rem',
+    gap: '0.5rem',
     alignItems: 'center',
+  },
+  attachBtn: {
+    width: '40px',
+    height: '40px',
+    borderRadius: '10px',
+    background: 'var(--bg-card)',
+    border: '1px solid var(--border-color)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    cursor: 'pointer',
+    flexShrink: 0,
   },
   textarea: {
     flex: 1,

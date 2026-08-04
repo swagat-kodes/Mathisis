@@ -7,7 +7,7 @@ import {
   Clock, Lock, ChevronDown, ChevronUp
 } from 'lucide-react'
 
-const API = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000'
+const API = (import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000').replace(/\/+$/, '')
 
 async function getToken() {
   const { data: { session } } = await supabase.auth.getSession()

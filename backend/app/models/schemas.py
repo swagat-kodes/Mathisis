@@ -11,8 +11,9 @@ class SubjectCreate(BaseModel):
 
 # ── Student ────────────────────────────────────────────────
 class AskRequest(BaseModel):
-    subject_id: str
-    query: str = Field(..., min_length=3, max_length=1000)
+    subject_id: Optional[str] = None
+    query: str = Field(..., min_length=1, max_length=2000)
+    image: Optional[str] = None  # Base64 string or Data URL
     answer_style: Optional[str] = Field("concise", pattern="^(concise|detailed)$")
 
 

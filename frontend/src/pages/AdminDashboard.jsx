@@ -13,7 +13,7 @@ import {
   Menu, X
 } from 'lucide-react'
 
-const API = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000'
+const API = (import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000').replace(/\/+$/, '')
 
 async function getToken() {
   const { data: { session } } = await supabase.auth.getSession()
@@ -51,79 +51,15 @@ export default function AdminDashboard() {
     document.documentElement.setAttribute('data-theme', theme)
   }, [theme])
 
-  // Admin Data State
-  const [years] = useState([1, 2, 3, 4])
-  const semesters = { 1: [1, 2], 2: [3, 4], 3: [5, 6], 4: [7, 8] }
-
-  const [selectedYear, setSelectedYear] = useState('')
-  const [selectedSemester, setSelectedSemester] = useState('')
-  const [subjects, setSubjects] = useState([])
-  const [selectedSubjectId, setSelectedSubjectId] = useState('')
-
-  const [newSubjectName, setNewSubjectName] = useState('')
-  const [creatingSubject, setCreatingSubject] = useState(false)
-
+  // Admin PDF Upload State
   const [pdfFile, setPdfFile] = useState(null)
   const [uploading, setUploading] = useState(false)
   const [uploadProgress, setUploadProgress] = useState('')
 
-  // Fetch subjects when year and semester change
-  useEffect(() => {
-    if (!selectedYear || !selectedSemester) return
-    fetch(`${API}/student/subjects?year=${selectedYear}&semester=${selectedSemester}`)
-      .then(r => r.json())
-      .then(data => {
-        setSubjects(Array.isArray(data) ? data : [])
-        setSelectedSubjectId('')
-      })
-      .catch(() => setSubjects([]))
-  }, [selectedYear, selectedSemester])
-
-  const availableSemesters = selectedYear ? semesters[Number(selectedYear)] : []
-
-  // Create new subject
-  const handleCreateSubject = async e => {
-    e.preventDefault()
-    if (!selectedYear || !selectedSemester || !newSubjectName.trim()) return
-    setCreatingSubject(true)
-    try {
-      const token = await getToken()
-      const res = await fetch(`${API}/admin/subjects`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          year: Number(selectedYear),
-          semester: Number(selectedSemester),
-          subject_name: newSubjectName.trim(),
-        }),
-      })
-
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.detail || 'Failed to create subject')
-
-      toast.success(`Subject "${data.subject_name}" created!`)
-      setNewSubjectName('')
-
-      const listRes = await fetch(
-        `${API}/student/subjects?year=${selectedYear}&semester=${selectedSemester}`
-      )
-      const listData = await listRes.json()
-      setSubjects(Array.isArray(listData) ? listData : [])
-      setSelectedSubjectId(data.id)
-    } catch (err) {
-      toast.error(err.message)
-    } finally {
-      setCreatingSubject(false)
-    }
-  }
-
   // Upload PDF Textbook
   const handleUploadPdf = async e => {
     e.preventDefault()
-    if (!selectedSubjectId || !pdfFile) return
+    if (!pdfFile) return
     setUploading(true)
     setUploadProgress('Extracting text pages & embedding content with Gemini...')
 
@@ -133,7 +69,7 @@ export default function AdminDashboard() {
       formData.append('file', pdfFile)
 
       const res = await fetch(
-        `${API}/admin/upload-textbook?subject_id=${selectedSubjectId}`,
+        `${API}/admin/upload-textbook`,
         {
           method: 'POST',
           headers: { Authorization: `Bearer ${token}` },
@@ -328,153 +264,62 @@ export default function AdminDashboard() {
             {/* TAB 1: UPLOAD TEXTBOOKS */}
             {activeTab === 'upload' && (
               <div style={styles.uploadTabContent}>
-                <div style={styles.grid2Col}>
-
-                  {/* Card 1: Subject Selection & Subject Creator */}
+                <div style={{ maxWidth: '640px', margin: '0 auto', width: '100%' }}>
                   <div className="glass fade-in-up" style={styles.card}>
                     <div style={styles.cardHeader}>
-                      <BookOpen size={20} color="var(--accent-green)" />
-                      <h3 style={styles.cardTitle}>1. Select or Create Subject</h3>
+                      <UploadCloud size={22} color="var(--accent-green)" />
+                      <h3 style={styles.cardTitle}>Upload Course Textbook PDF</h3>
                     </div>
+                    <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '1.25rem' }}>
+                      Upload engineering PDF textbooks to index them into the RAG vector store for Mathisis AI.
+                    </p>
 
-                    {/* Step A: Select Year & Semester */}
-                    <div style={styles.fieldGroup}>
-                      <label style={styles.label}>Select Academic Term</label>
-                      <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
-                        <select
-                          className="select-field"
-                          value={selectedYear}
-                          onChange={e => {
-                            setSelectedYear(e.target.value)
-                            setSelectedSemester('')
-                            setSubjects([])
-                            setSelectedSubjectId('')
-                          }}
-                          style={{ flex: 1, minWidth: '120px' }}
-                        >
-                          <option value="">Year...</option>
-                          {years.map(y => <option key={y} value={y}>Year {y}</option>)}
-                        </select>
-
-                        <select
-                          className="select-field"
-                          value={selectedSemester}
-                          onChange={e => {
-                            setSelectedSemester(e.target.value)
-                            setSelectedSubjectId('')
-                          }}
-                          disabled={!selectedYear}
-                          style={{ flex: 1, minWidth: '120px' }}
-                        >
-                          <option value="">Semester...</option>
-                          {availableSemesters.map(s => <option key={s} value={s}>Sem {s}</option>)}
-                        </select>
-                      </div>
-                    </div>
-
-                    {/* Step B: Existing Subject Select */}
-                    {selectedYear && selectedSemester && (
-                      <div style={styles.fieldGroup}>
-                        <label style={styles.label}>Existing Subjects</label>
-                        <select
-                          className="select-field"
-                          value={selectedSubjectId}
-                          onChange={e => setSelectedSubjectId(e.target.value)}
-                        >
-                          <option value="">{subjects.length ? 'Select a Subject...' : 'No subjects found for this term'}</option>
-                          {subjects.map(s => <option key={s.id} value={s.id}>{s.subject_name}</option>)}
-                        </select>
-                      </div>
-                    )}
-
-                    {/* Step C: Create New Subject Form */}
-                    {selectedYear && selectedSemester && (
-                      <form onSubmit={handleCreateSubject} style={styles.createSubjectForm}>
-                        <label style={styles.label}>+ Add New Subject to Term</label>
-                        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-                          <input
-                            className="input-field"
-                            placeholder="e.g. Applied Physics"
-                            value={newSubjectName}
-                            onChange={e => setNewSubjectName(e.target.value)}
-                            required
-                            style={{ flex: 1, minWidth: '160px' }}
-                          />
-                          <button
-                            className="btn-primary"
-                            type="submit"
-                            disabled={creatingSubject || !newSubjectName.trim()}
-                            style={{ flexShrink: 0, minHeight: '44px' }}
-                          >
-                            <Plus size={16} /> Add
-                          </button>
-                        </div>
-                      </form>
-                    )}
-                  </div>
-
-                  {/* Card 2: Upload PDF File */}
-                  <div className="glass fade-in-up" style={styles.card}>
-                    <div style={styles.cardHeader}>
-                      <UploadCloud size={20} color="var(--accent-green)" />
-                      <h3 style={styles.cardTitle}>2. Upload Textbook PDF</h3>
-                    </div>
-
-                    {!selectedSubjectId ? (
-                      <div style={styles.placeholderBox}>
-                        <AlertCircle size={32} color="var(--text-muted)" />
-                        <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', textAlign: 'center', marginTop: '0.5rem' }}>
-                          Please select or create a subject on the left to enable PDF uploading.
-                        </p>
-                      </div>
-                    ) : (
-                      <form onSubmit={handleUploadPdf} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                        <div style={styles.dropzone}>
-                          <FileText size={36} color={pdfFile ? 'var(--accent-green)' : 'var(--text-muted)'} />
-                          {pdfFile ? (
-                            <div>
-                              <p style={{ fontWeight: '700', color: 'var(--text-primary)', fontSize: '0.9rem' }}>{pdfFile.name}</p>
-                              <p style={{ color: 'var(--text-muted)', fontSize: '0.78rem', marginTop: '2px' }}>
-                                {(pdfFile.size / 1024 / 1024).toFixed(2)} MB
-                              </p>
-                            </div>
-                          ) : (
-                            <div>
-                              <p style={{ fontWeight: '600', color: 'var(--text-primary)', fontSize: '0.88rem' }}>
-                                Click to select a PDF textbook
-                              </p>
-                              <p style={{ color: 'var(--text-muted)', fontSize: '0.78rem', marginTop: '2px' }}>
-                                PDF files up to 50MB supported
-                              </p>
-                            </div>
-                          )}
-                          <input
-                            type="file"
-                            accept=".pdf"
-                            onChange={e => setPdfFile(e.target.files?.[0] || null)}
-                            style={styles.fileInputHidden}
-                          />
-                        </div>
-
-                        {uploadProgress && (
-                          <div style={styles.progressBox}>
-                            <span className="typing-dot" /><span className="typing-dot" /><span className="typing-dot" />
-                            <span style={{ fontSize: '0.8rem', color: 'var(--accent-green)', fontWeight: '600' }}>
-                              {uploadProgress}
-                            </span>
+                    <form onSubmit={handleUploadPdf} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                      <div style={styles.dropzone}>
+                        <FileText size={40} color={pdfFile ? 'var(--accent-green)' : 'var(--text-muted)'} />
+                        {pdfFile ? (
+                          <div>
+                            <p style={{ fontWeight: '700', color: 'var(--text-primary)', fontSize: '0.92rem' }}>{pdfFile.name}</p>
+                            <p style={{ color: 'var(--text-muted)', fontSize: '0.78rem', marginTop: '2px' }}>
+                              {(pdfFile.size / 1024 / 1024).toFixed(2)} MB
+                            </p>
+                          </div>
+                        ) : (
+                          <div>
+                            <p style={{ fontWeight: '600', color: 'var(--text-primary)', fontSize: '0.9rem' }}>
+                              Click or drop to select a PDF textbook
+                            </p>
+                            <p style={{ color: 'var(--text-muted)', fontSize: '0.78rem', marginTop: '4px' }}>
+                              PDF files up to 50MB supported
+                            </p>
                           </div>
                         )}
+                        <input
+                          type="file"
+                          accept=".pdf"
+                          onChange={e => setPdfFile(e.target.files?.[0] || null)}
+                          style={styles.fileInputHidden}
+                        />
+                      </div>
 
-                        <button
-                          className="btn-primary"
-                          type="submit"
-                          disabled={!pdfFile || uploading}
-                          style={{ width: '100%', minHeight: '44px' }}
-                        >
-                          {uploading ? 'Processing & Indexing PDF...' : 'Upload & Process Textbook'}
-                        </button>
-                      </form>
-                    )}
+                      {uploadProgress && (
+                        <div style={styles.progressBox}>
+                          <span className="typing-dot" /><span className="typing-dot" /><span className="typing-dot" />
+                          <span style={{ fontSize: '0.8rem', color: 'var(--accent-green)', fontWeight: '600' }}>
+                            {uploadProgress}
+                          </span>
+                        </div>
+                      )}
+
+                      <button
+                        className="btn-primary"
+                        type="submit"
+                        disabled={!pdfFile || uploading}
+                        style={{ width: '100%', minHeight: '46px', fontSize: '0.9rem' }}
+                      >
+                        {uploading ? 'Processing & Indexing PDF...' : 'Upload & Process Textbook'}
+                      </button>
+                    </form>
                   </div>
                 </div>
               </div>
