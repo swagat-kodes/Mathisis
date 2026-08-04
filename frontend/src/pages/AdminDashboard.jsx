@@ -44,7 +44,7 @@ export default function AdminDashboard() {
 
   // Preferences State
   const [theme, setTheme] = useState(() => localStorage.getItem('mathisis_theme') || 'dark')
-  const [answerStyle, setAnswerStyle] = useState(() => localStorage.getItem('mathisis_answer_style') || 'concise')
+  const [answerStyle, setAnswerStyle] = useState(() => localStorage.getItem('mathisis_answer_style') || 'detailed')
 
   // Theme Sync
   useEffect(() => {

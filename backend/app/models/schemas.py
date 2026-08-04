@@ -14,7 +14,7 @@ class AskRequest(BaseModel):
     subject_id: Optional[str] = None
     query: str = Field(..., min_length=1, max_length=2000)
     image: Optional[str] = None  # Base64 string or Data URL
-    answer_style: Optional[str] = Field("concise", pattern="^(concise|detailed)$")
+    answer_style: Optional[str] = Field("detailed", pattern="^(concise|detailed)$")
 
 
 class Source(BaseModel):

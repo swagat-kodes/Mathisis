@@ -38,7 +38,7 @@ def _parse_base64_image(image_str: str) -> tuple[bytes, str]:
     return image_bytes, mime_type
 
 
-def _build_rag_prompt(query: str, contexts: list[dict], answer_style: str = "concise", max_chunks: int = 12) -> str:
+def _build_rag_prompt(query: str, contexts: list[dict], answer_style: str = "detailed", max_chunks: int = 12) -> str:
     """Constructs the RAG prompt from retrieved context chunks."""
     contexts = contexts[:max_chunks]
     context_blocks = []

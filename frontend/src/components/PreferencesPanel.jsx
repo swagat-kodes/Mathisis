@@ -85,7 +85,7 @@ export default function PreferencesPanel({
           <div style={styles.sectionHeader}>
             <div>
               <h3 style={styles.sectionTitle}>2. AI Answer Detail Level</h3>
-              <p style={styles.sectionDesc}>Select how Mathisis AI formats its textbook explanations. Default is Concise.</p>
+              <p style={styles.sectionDesc}>Select how Mathisis AI formats its textbook explanations. Default is Detailed.</p>
             </div>
           </div>
 
@@ -102,7 +102,7 @@ export default function PreferencesPanel({
                 <AlignLeft size={22} color={answerStyle === 'concise' ? 'var(--accent-green)' : 'var(--text-muted)'} />
               </div>
               <div style={{ flex: 1 }}>
-                <h4 style={styles.optionName}>Concise (Default)</h4>
+                <h4 style={styles.optionName}>Concise</h4>
                 <p style={styles.optionMeta}>Direct, point-to-point answers focused on key facts</p>
               </div>
               {answerStyle === 'concise' && <Check size={18} color="var(--accent-green)" />}
@@ -120,7 +120,7 @@ export default function PreferencesPanel({
                 <FileText size={22} color={answerStyle === 'detailed' ? 'var(--accent-green)' : 'var(--text-muted)'} />
               </div>
               <div style={{ flex: 1 }}>
-                <h4 style={styles.optionName}>Detailed</h4>
+                <h4 style={styles.optionName}>Detailed (Default)</h4>
                 <p style={styles.optionMeta}>In-depth, step-by-step explanations with derivations</p>
               </div>
               {answerStyle === 'detailed' && <Check size={18} color="var(--accent-green)" />}

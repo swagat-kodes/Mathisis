@@ -119,7 +119,7 @@ export default function ChatPanel({
           subject_id: selectedSubject?.id || null,
           query: currentText || 'Please analyze this image.',
           image: currentImg ? currentImg.base64 : null,
-          answer_style: answerStyle || 'concise'
+          answer_style: answerStyle || 'detailed'
         }),
       })
 
